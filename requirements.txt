@@ -1,0 +1,22 @@
+jsonpatch
+mwclient
+mwparserfromhell
+pandas
+pillow
+pip-chill
+termcolor
+wikitextparser
+# certifi # Installed as dependency for requests
+# chardet # Installed as dependency for requests
+# idna # Installed as dependency for requests
+# jsonpointer # Installed as dependency for jsonpatch
+# numpy # Installed as dependency for pandas
+# oauthlib # Installed as dependency for requests-oauthlib
+# python-dateutil # Installed as dependency for pandas
+# pytz # Installed as dependency for pandas
+# regex # Installed as dependency for wikitextparser
+# requests # Installed as dependency for requests-oauthlib
+# requests-oauthlib # Installed as dependency for mwclient
+# six # Installed as dependency for python-dateutil, mwclient
+# urllib3 # Installed as dependency for requests
+# wcwidth # Installed as dependency for wikitextparser
