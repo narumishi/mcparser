@@ -1,6 +1,9 @@
 import json
 import re
-from typing import Any, List, Dict, Type, Union, Iterable  # noqas
+import sys
+import threading
+import traceback
+from typing import Any, List, Dict, Type, Union, Iterable, Optional, Sequence  # noqas
 
 import mwclient  # noqas
 import mwparserfromhell as mwp  # noqas
@@ -30,6 +33,17 @@ def valid_var_name(name: str):
     return var
 
 
+def list_append(_list: List, element, ignore=(None, '')):
+    if element not in ignore:
+        _list.append(element)
+
+
+def list_extend(_list: List, elements: Iterable, ignore=(None, '')):
+    for e in elements:
+        if e not in ignore:
+            _list.append(e)
+
+
 def dump_json(obj, fp: str = None, **kwargs):
     indent = kwargs.pop('indent', 2)
     ensure_ascii = kwargs.pop('ensure_ascii', False)
@@ -42,6 +56,36 @@ def dump_json(obj, fp: str = None, **kwargs):
 
 def load_json(fp: str, **kwargs):
     return json.load(open(fp, encoding='utf8'), **kwargs)
+
+
+def catch_exception(func):
+    """Catch exception then print error and traceback to logger.
+
+    Decorator can be applied to multi-threading but multi-processing
+    """
+
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except:  # noqas
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            logger.error(f'================= Error in {threading.current_thread()} ====================\n'
+                         f'{"".join(traceback.format_exception(exc_type, exc_value, exc_traceback))}')
+
+    return wrapper
+
+
+class CatchException:
+    def __init__(self, func):
+        self.func = func
+
+    def __call__(self, *args, **kwargs):
+        try:
+            return self.func(*args, **kwargs)
+        except:  # noqas
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            logger.error(f'================= Error in {threading.current_thread()} ====================\n'
+                         f'{"".join(traceback.format_exception(exc_type, exc_value, exc_traceback))}')
 
 
 # %% site related
@@ -67,13 +111,36 @@ def redirect(code, default=None):
 
 
 # %% wikitext base util
-def remove_tag(string: str, tags=('heimu', 'del', 'sup', 'bold', 'ref', 'comment', 'link', 'tegong'),
-               console=False):
+kAllTags = ('br', 'heimu', 'del', 'sup', 'bold', 'ref', 'comment', 'link', 'tegong')
+
+
+class Params(dict):
+    def get(self, k, default=None, cast=None, tags=None):
+        """
+        :param k: dict key.
+        :param default: default value if key not in dict.
+        :param cast: A callable function for type cast, e.g. int, str.
+        :param tags: tags to be removed.
+        :return:
+        """
+        if k not in self:
+            return default
+        v = super(Params, self).get(k)
+        if isinstance(v, str) and tags is not None:
+            v = remove_tag(v, tags)
+        if cast is not None:
+            v = cast(v)
+        return v
+
+
+def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
     string = string.strip()
     string = re.sub(r'<br *?/? *?>', '\n', string)
     if string in ('-', '—', ''):
         return ''
     old = string
+    if 'br' in tags:
+        string = re.sub(r'<br *?/? *?>', '\n', string)
     # shadow deal
     if 'heimu' in tags:
         shadows = re.findall(r'({{(?:黑幕|heimu)\|(.+?)}})', string)
@@ -106,31 +173,47 @@ def remove_tag(string: str, tags=('heimu', 'del', 'sup', 'bold', 'ref', 'comment
             else:
                 string = string.replace(link[0], '')
     # special
-    string = string.replace('{{jin}}', 'jin')  # Okita Souji Alter
+    # string = string.replace('{{jin}}', 'jin')  # Okita Souji Alter
     # final check
     if string != old and console:
         logger.info(f'remove tags: from {old} -> {string}')
     return string
 
 
-def parse_template(template: Wikitext, match_pattern: str = None, keep_blank=False) -> Dict:
+def parse_template(template: Wikitext, match_pattern: str = None) -> Params:
     if isinstance(template, (str, Wikicode)):
         templates = mwp.parse(template).filter_templates(matches=match_pattern)
         if len(templates) == 0:
-            return {}
+            return Params()
         tmpl: Template = templates[0]
     else:
         tmpl = template
-    params = dict()
+    params = Params()
     for p in tmpl.params:  # type:Parameter
-        old = trim(p.value)
-        value = old
-        if value in ('-', '—', ''):
-            if keep_blank:
-                params[trim(p.name)] = value.replace('—', '-')
-            else:
-                # won't append the empty param if keep_blank is False
-                continue
-        else:
+        value = trim(p.value)
+        if value not in ('-', '—', ''):
             params[trim(p.name)] = value
     return params
+
+
+def split_tabber(code: Wikitext, default=''):
+    if isinstance(code, str):
+        code: Wikicode = mwp.parse(code)
+    tags: List[Tag] = code.filter_tags(recursive=False, matches='tabber')
+    if len(tags) == 0:
+        return [(default, trim(str(code)))]
+    else:
+        tabs = tags[0].contents.__str__().split('|-|')
+        tab_list = []
+        for tab in tabs:
+            res = re.findall(r'^([^{}]+?)=([\w\W]*?)$', tab)[0]
+            tab_list.append([res[0].strip(), res[1].strip()])
+        return tab_list
+
+
+def split_file_link(code: str):
+    result = re.findall(r'\[\[(?:文件|File|file):([^|\]\[\n]+)', code)
+    if len(result) > 0:
+        return trim(result[0])
+    else:
+        return None

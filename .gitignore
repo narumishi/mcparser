@@ -1,6 +1,7 @@
 ### User defined
 /output
 /test*.py
+*.json
 
 ### Python
 # Byte-compiled / optimized / DLL files

@@ -108,9 +108,9 @@ class CSVParser:
         if redirect_link is not None:
             self.data.loc[index, 'name_link'] = redirect_link
             wikitext = get_site_page(redirect_link)
-        wikitext = re.sub(r'<br *?/? *?>', '\n', wikitext)
+        wikitext = remove_tag(wikitext, ('br', 'heimu', 'del', 'sup', 'ref', 'comment'))
         wikitext = str(re.sub(r'</?(no)?(only)?(include|wiki)(only)?>', '', wikitext, flags=RegexFlag.IGNORECASE))
-        wikitext = str(re.sub(r'<!--([\w\W]*?)-->', '', wikitext, flags=RegexFlag.IGNORECASE))
+
         if 'wikitext' in self.data.keys():
             old_text = str(self.data.loc[index, 'wikitext'])
             if old_text != wikitext:

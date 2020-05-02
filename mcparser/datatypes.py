@@ -8,11 +8,18 @@ class Jsonable:
     All json serializable attributes must be initiated an instance.
     """
 
-    def to_json(self):
+    def to_json(self, hide_private=True):
+        """Recursively convert to json object rather than string.
+
+        :param hide_private: if True, private attributes will be ignored.
+        :return: json object(dict).
+        """
         data = dict()
         for k, v in self.__dict__.items():
             if hasattr(v, 'to_json') and callable(v.to_json):
-                data[k] = v.to_json()
+                data[k] = v.to_json(hide_private)
+            elif hide_private and k.startswith('_'):
+                continue
             else:
                 data[k] = v
         return data
@@ -90,9 +97,18 @@ class Servant(Jsonable):
 
 class ServantBaseInfo(Jsonable):
     def __init__(self):
+        self._no = 0
         self.obtain = ''
         self.rarity = 0
         self.rarity2 = 0
+        self.name = ''
+        self.nameJp = ''
+        self.nameEn = ''
+        self.namesOther: List[str] = []
+        self.namesJpOther: List[str] = []
+        self.namesEnOther: List[str] = []
+        self.illustName = ''
+        self.nicknames: List[str] = []
         self.weight = ''
         self.height = ''
         self.gender = ''
@@ -101,11 +117,6 @@ class ServantBaseInfo(Jsonable):
         self.attribute = ''
         self.isHumanoid = False
         self.isWeakToEA = False
-        self.name = ''
-        self.nameJp = ''
-        self.nameEn = ''
-        self.illustName = ''
-        self.nicknames: List[str] = []
         self.cv: List[str] = []
         self.alignments: List[str] = []
         self.traits: List[str] = []
