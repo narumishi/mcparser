@@ -89,13 +89,16 @@ def count_time(func):
 
 
 # %% mw site
-def get_site_page(page, n=10):
+def get_site_page(name, isfile=False, n=10):
     retry_no = 0
     while retry_no < n:
         try:
-            result = config.site.pages[page].text()
+            if isfile:
+                result = config.site.images[name].save()
+            else:
+                result = config.site.pages[name].text()
             return result
         except:  # noqas
             retry_no += 1
-    logger.error(f'Error download page "{page}" after {n} retry.')
+    logger.error(f'Error download page "{name}" after {n} retry.')
     return None

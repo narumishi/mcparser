@@ -9,10 +9,10 @@ from .util import *
 
 class Icons:
     filename = 'icons.json'
-    data: Dict[str, GameIcon] = {}
+    data: Dict[str, FileResource] = {}
 
     @classmethod
-    def add(cls, filename: str, key: str = None):
+    def add(cls, filename: str, key: str = None, save: bool = True):
         if cls.data == {}:
             cls.load()
         fn_split = re.split(r'[(（]有框[)）]', filename)
@@ -25,7 +25,7 @@ class Icons:
             for fn in (filename, filename + '.png', filename + '.jpg'):
                 info = config.site.images[filename].imageinfo
                 if info != {}:
-                    cls.data[key] = GameIcon(name=fn, url=info['url'])
+                    cls.data[key] = FileResource(name=key, filename=fn, url=info['url'], save=save)
                     return key
             print(f'Adding icon: "{filename}" not exist!')
             return None
@@ -55,7 +55,10 @@ class Icons:
         def _down_icon(key):
             icon = cls.data[key]
             icon_fp = os.path.join(icon_dir, icon.name)
-            if (not os.path.exists(icon_fp) or force) and icon.url:
+            if not icon.url:
+                # resolve exact file url
+                icon.url = get_site_page(icon.filename or icon.name, isfile=True).imageinfo.get('url', None)
+            if icon.save and icon.url and (force or not os.path.exists(icon_fp)):
                 urlretrieve(icon.url, icon_fp)
                 print(f'downloaded {icon.name}')
             else:
@@ -65,7 +68,7 @@ class Icons:
                 Image.open(icon_fp).convert('RGB').save(icon_fp, format='jpeg')
                 print(f'compress icon {key}')
 
-        executor = ThreadPoolExecutor(max_workers=kWorkersNum)
+        executor = ThreadPoolExecutor(max_workers=kWorkersNum * 2)
         for _ in executor.map(_down_icon, cls.data.keys()):
             pass
         for s in ('技能', '宝具'):
@@ -77,7 +80,7 @@ class Icons:
             img.putpalette(palette)
             filename = f'{s}未强化.png'
             img.save(os.path.join(icon_dir, filename), format="png")
-            cls.data[f'{s}未强化.png'] = GameIcon(name=filename, url=None)
+            cls.data[filename] = FileResource(name=filename, url=None, save=False)
         print(f'downloaded icons at {icon_dir}')
 
     @classmethod
@@ -90,4 +93,4 @@ class Icons:
         if os.path.exists(fn):
             data = json.load(open(fn, encoding='utf8'))
             for k, v in data.items():
-                cls.data[k] = GameIcon(**v)
+                cls.data[k] = FileResource(**v)

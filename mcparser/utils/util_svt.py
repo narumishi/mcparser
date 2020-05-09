@@ -65,15 +65,13 @@ def p_base_info(params: Params, instance: ServantBaseInfo = None):
     if '立绘tabber' in params:
         for illust_name, content in split_tabber(params.get('立绘tabber')):
             illust_file = split_file_link(content)
-            instance.illust.append(GameIcon(name=illust_name, url=config.site.images[illust_file].imageinfo['url']))
+            instance.illust[illust_name] = illust_file
     else:
         for i in range(1, 11):
             illust_name = params.get(f'立绘{i}', '')
             illust_file = params.get(f'文件{i}', '')
             if illust_name or illust_file:
-                illust_file = illust_file + '.png'
-                instance.illust.append(
-                    GameIcon(name=illust_name, url=config.site.images[illust_file].imageinfo['url']))
+                instance.illust[illust_name] = illust_file + '.png'
 
     if instance._no not in kUnavailableSvt:
         for i in '一二三四五':
@@ -279,4 +277,20 @@ def p_fool_profiles(params: Params):
         profile.condition = None
         if profile.descriptionJp:
             instance.append(profile)
+    return instance
+
+
+def p_voice_table(params: Params, instance: VoiceTable = None):
+    if instance is None:
+        instance = VoiceTable()
+    instance.section = params.get('表格标题')
+    for i in range(1, 60):  # mc: 1~50
+        record = VoiceRecord()
+        record.title = params.get(f'标题{i}')
+        record.text = params.get(f'中文{i}')
+        record.textJp = params.get(f'日文{i}')
+        record.condition = params.get(f'条件{i}')
+        record.file = params.get(f'语音{i}')
+        if record.textJp:
+            instance.table.append(record)
     return instance

@@ -84,7 +84,7 @@ class GameData(Jsonable):
         self.crafts: Dict[int, CraftEssential] = {}
         self.cmdCodes: Dict[int, CmdCode] = {}
         self.items: Dict[str, Item] = {}
-        self.icons: Dict[str, GameIcon] = {}
+        self.icons: Dict[str, FileResource] = {}
         self.events = Events()
         self.freeQuests: Dict[str, Quest] = {}
         self.glpk = GLPKData()
@@ -95,7 +95,7 @@ class GameData(Jsonable):
 
     def from_json(self, data: Dict):
         self.attributes_from_map(data, {'servants': Servant, 'crafts': CraftEssential, 'cmdCodes': CmdCode}, int)
-        self.attributes_from_map(data, {'items': Item, 'icons': GameIcon, 'freeQuests': Quest})
+        self.attributes_from_map(data, {'items': Item, 'icons': FileResource, 'freeQuests': Quest})
         super(GameData, self).from_json(data)
 
 
@@ -153,7 +153,7 @@ class ServantBaseInfo(Jsonable):
         self.alignments: List[str] = []
         self.traits: List[str] = []
         self.ability: Dict[str, str] = {}
-        self.illust: List[GameIcon] = []
+        self.illust: Dict[str, str] = {}
         self.cards: List[str] = []
         self.cardHits: Dict[str, int] = {}
         self.cardHitsDamage: Dict[str, List[int]] = {}
@@ -271,7 +271,7 @@ class VoiceRecord(Jsonable):
         self.text = ''
         self.textJp = ''
         self.condition = ''
-        self.fileUrl = ''
+        self.file = ''
         super().__init__(**kwargs)
 
     def __repr__(self):
@@ -390,10 +390,12 @@ class Quest(Jsonable):
         return self.get_repr(self.nameCn)
 
 
-class GameIcon(Jsonable):
+class FileResource(Jsonable):
     def __init__(self, **kwargs):
         self.name = ''
+        self.filename = None  # if name != filename, implement it
         self.url = ''
+        self.save: bool = True
         super().__init__(**kwargs)
 
     def __repr__(self):

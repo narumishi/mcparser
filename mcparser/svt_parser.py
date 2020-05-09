@@ -52,6 +52,8 @@ class ServantParser:
         self._item_cost(index, code, servant)
         self._bond_points(index, code, servant)
         self._profiles(index, code, servant)
+        wikicode_voice = mwp.parse(self.src_data.loc[index, 'wikitext_voice'])
+        self._voices(index, wikicode_voice, servant)
         return servant
 
     def _base_info(self, index: int, code: Wikicode, servant: Servant):
@@ -168,6 +170,15 @@ class ServantParser:
         servant.profiles = p_profiles(params_profile)
         params_fool = parse_template(code, r'^{{愚人节资料')
         servant.profiles.extend(p_fool_profiles(params_fool))
+
+    def _voices(self, index: int, code: Wikicode, servant: Servant):  # noqas
+        for template in code.filter_templates(matches=r'^{{#invoke:VoiceTable'):
+            params = parse_template(template, r'^{{#invoke:VoiceTable')
+            table = p_voice_table(params)
+            for record in table.table:
+                if record.file:
+                    Icons.add(record.file, save=False)
+            servant.voices.append(table)
 
     def dump(self, fp='output/temp/svt.json'):
         dump_json(self.data, fp, default=lambda o: o.to_json())
