@@ -1,96 +1,6 @@
-import json
-import os
-import re
-import sys
-import threading
-import traceback
-from typing import Any, List, Dict, Type, Union, Iterable, Optional, Sequence, Tuple  # noqas
+from .basic import *  # noqas
 
-import mwparserfromhell as mwp  # noqas
-import wikitextparser  # noqas
-from mwparserfromhell.nodes.extras.parameter import Parameter  # noqas
-from mwparserfromhell.nodes.tag import Tag  # noqas
-from mwparserfromhell.nodes.template import Template  # noqas
-from mwparserfromhell.wikicode import Wikicode  # noqas
-
-from mcparser.base.config import *  # noqas
-from mcparser.base.log import logger
-
-Wikitext = Union[str, Wikicode, Template]
-
-G = {}  # global vars
-
-
-def trim(s: str, chars=None):
-    return s.strip(chars)
-
-
-def valid_var_name(name: str):
-    """Generate a valid variable name"""
-    var = re.sub(r'[\\/ .\-]', '_', name.strip())
-    var = re.sub(r'[^_a-zA-Z]', '', var)
-    assert len(name) > 1, (name, var)
-    return var
-
-
-def list_append(_list: List, element, ignore=(None, '')):
-    if element not in ignore:
-        _list.append(element)
-
-
-def list_extend(_list: List, elements: Iterable, ignore=(None, '')):
-    for e in elements:
-        if e not in ignore:
-            _list.append(e)
-
-
-def dump_json(obj, fp: str = None, **kwargs):
-    indent = kwargs.pop('indent', 2)
-    ensure_ascii = kwargs.pop('ensure_ascii', False)
-    if fp is not None:
-        os.makedirs(os.path.dirname(fp), exist_ok=True)
-        json.dump(obj, open(fp, 'w', encoding='utf-8'), ensure_ascii=ensure_ascii, indent=indent, **kwargs)
-        return None
-    else:
-        return json.dumps(obj, ensure_ascii=ensure_ascii, indent=indent, **kwargs)
-
-
-def load_json(fp: str, **kwargs):
-    return json.load(open(fp, encoding='utf8'), **kwargs)
-
-
-def catch_exception(func):
-    """Catch exception then print error and traceback to logger.
-
-    Decorator can be applied to multi-threading but multi-processing
-    """
-
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except:  # noqas
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            logger.error(f'================= Error in {threading.current_thread()} ====================\n'
-                         f'{"".join(traceback.format_exception(exc_type, exc_value, exc_traceback))}')
-
-    return wrapper
-
-
-# %% site related
-def get_site_page(page, n=10):
-    retry_no = 0
-    while retry_no < n:
-        try:
-            result = config.site.pages[page].text()
-            return result
-        except:  # noqas
-            retry_no += 1
-    logger.error(f'Error download page "{page}" after {n} retry.')
-    return None
-
-
-# %% wikitext base utils
-kAllTags = ('br', 'heimu', 'del', 'sup', 'bold', 'ref', 'comment', 'link', 'tegong')
+kAllTags = ('br', 'heimu', 'del', 'sup', 'bold', 'ref', 'comment', 'link', 'tegong', 'xiuzheng', 'ruby')
 
 
 class Params(dict):
@@ -112,6 +22,7 @@ class Params(dict):
         return v
 
 
+# %% common used wikitext edit functions
 def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
     string = string.strip()
     string = re.sub(r'<br *?/? *?>', '\n', string)
@@ -127,11 +38,17 @@ def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
             replaced = r[1].split('|')[0]
             string = string.replace(r[0], replaced)
     if 'tegong' in tags:
-        traits: List[Template] = mwp.parse(string).filter_templates(matches='{{特性')
-        for trait in traits:
+        for trait in mwp.parse(string).filter_templates(matches=r'^{{特性'):
             params_trait = parse_template(trait)
-            string = string.replace(str(trait), params_trait.get('2', params_trait['1']))
-
+            string = string.replace(str(trait), params_trait.get('2', params_trait.get('1')))
+    if 'xiuzheng' in tags:
+        for template in mwp.parse(string).filter_templates(matches=r'{{修正'):
+            params = parse_template(template)
+            string = string.replace(str(template), params.get('1', ''))
+    if 'ruby' in tags:
+        for template in mwp.parse(string).filter_templates(matches=r'{{ruby'):
+            params = parse_template(template)
+            string = string.replace(str(template), f"{params.get('1')}[{params.get('2')}]")
     # del/sup tag, bold('''): remain content
     if 'del' in tags:
         string = re.sub(r'<(del|sup)>(.*?)</\1>', r'\2', string)
@@ -152,7 +69,8 @@ def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
             else:
                 string = string.replace(link[0], '')
     # special
-    # string = string.replace('{{jin}}', 'jin')  # Okita Souji Alter
+    string = string.replace('{{jin}}', 'jin')  # Okita Souji Alter
+
     # final check
     if string != old and console:
         logger.info(f'remove tags: from {old} -> {string}')
@@ -230,3 +148,27 @@ def find_effect_target(description: str, last=None):
     else:
         target = last
     return target
+
+
+# %% common used template parse functions
+def p_one_item(params: Params):
+    """For template 材料消耗&道具"""
+    return params.get('1'), params.get('2', default=1, cast=int)
+
+
+def p_items(code: Wikitext):
+    # qp counts may be no correct
+    items: Dict[str, int] = {}
+    fragments = re.findall(r'(?={{)(.+?)(?<=}})([^{}]*?)(?={{|$)', str(code))
+    for item_template, groups in fragments:
+        item, num = p_one_item(parse_template(item_template, match_pattern=r'^{{(道具|材料消耗)'))
+        if item is None:
+            continue
+        groups = re.sub(r',\+', '', groups)
+        group_find = re.findall(r'\d+', groups)
+        if len(group_find) == 0:
+            group_num = 1
+        else:
+            group_num = int(group_find[0])
+        items[item] = num * group_num
+    return items

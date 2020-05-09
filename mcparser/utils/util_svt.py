@@ -25,7 +25,7 @@ def p_base_info(params: Params, instance: ServantBaseInfo = None):
     list_append(instance.namesJpOther, params.get('日文简称', tags=kAllTags))
     list_append(instance.namesEnOther, params.get('英文简称', tags=kAllTags))
 
-    list_extend(instance.nicknames, re.split(r'[,，\s]', remove_tag(params.get('昵称', ''))))
+    list_extend(instance.nicknames, re.split(r'[,，\s]', params.get('昵称', '', tags=kAllTags)))
 
     for suffix in ('', '2', '3', '新'):
         list_append(instance.cv, params.get('声优' + suffix, tags=kAllTags))
@@ -65,7 +65,7 @@ def p_base_info(params: Params, instance: ServantBaseInfo = None):
     if '立绘tabber' in params:
         for illust_name, content in split_tabber(params.get('立绘tabber')):
             illust_file = split_file_link(content)
-            instance.illust.append(GameIcon(filename=illust_name, url=config.site.images[illust_file].imageinfo['url']))
+            instance.illust.append(GameIcon(name=illust_name, url=config.site.images[illust_file].imageinfo['url']))
     else:
         for i in range(1, 11):
             illust_name = params.get(f'立绘{i}', '')
@@ -73,7 +73,7 @@ def p_base_info(params: Params, instance: ServantBaseInfo = None):
             if illust_name or illust_file:
                 illust_file = illust_file + '.png'
                 instance.illust.append(
-                    GameIcon(filename=illust_name, url=config.site.images[illust_file].imageinfo['url']))
+                    GameIcon(name=illust_name, url=config.site.images[illust_file].imageinfo['url']))
 
     if instance._no not in kUnavailableSvt:
         for i in '一二三四五':
@@ -109,10 +109,10 @@ def p_treasure_device(params: Params, instance: TreasureDevice = None):
         effect.description = params.get('效果' + i)
         if effect.description is None:
             break
-        effect.target = params.get('对象' + i)
-        if not effect.target:
-            last_target = instance.effects[-1].target if instance.effects else None
-            effect.target = find_effect_target(effect.description, last_target)
+        # effect.target = params.get('对象' + i)
+        # if not effect.target:
+        #     last_target = instance.effects[-1].target if instance.effects else None
+        #     effect.target = find_effect_target(effect.description, last_target)
         for j in range(1, 6):
             value = params.get(f'数值{i}{j}')
             if value is None:
@@ -131,8 +131,8 @@ def p_active_skill(params: Params, instance: Skill = None):
         instance = Skill()
     instance.icon = params.get('1') + '.png'
     instance.cd = params.get('4', cast=int)
-    name_rank = remove_tag(params.get('2'))
-    name_rank_jp = remove_tag(params.get('3'))
+    name_rank = params.get('2', tags=kAllTags)
+    name_rank_jp = params.get('3', tags=kAllTags)
     cn_splits = name_rank.rsplit(maxsplit=1)
     jp_splits = name_rank_jp.rsplit(maxsplit=1)
     assert len(cn_splits) == len(jp_splits), (cn_splits, jp_splits)
@@ -148,11 +148,11 @@ def p_active_skill(params: Params, instance: Skill = None):
         instance.rank = ''  # or None?
     offset = 5  # first effect description is at "5"(str)
     while True:
-        des = params.get(str(offset))
+        des = params.get(str(offset), tags=kAllTags)
         if not des:
             break
         effect = Effect()
-        effect.description = remove_tag(des)
+        effect.description = des
         for i in range(1, 11):
             value = params.get(str(offset + i))
             if value is None:
@@ -162,4 +162,121 @@ def p_active_skill(params: Params, instance: Skill = None):
         assert len(effect.lvData) in (1, 10), effect
         instance.effects.append(effect)
         offset += 11
+    return instance
+
+
+def p_passive_skill(params: Params):
+    # {{职阶技能|  1  |  2  |  3  |   4   |   5   |   6   | 7~12 | 13~21 | }}
+    # {{职阶技能|icon1|name1|rank1|effect1| skill2~6}}
+    instance = []
+    offset = 0
+    while True:
+        skill = Skill()
+        skill.icon = params.get(str(offset + 1))
+        if skill.icon is None:
+            break
+        skill.icon += '.png'
+        skill.name = params.get(str(offset + 2))
+        skill.rank = params.get(str(offset + 3))
+        effect_texts = re.split(r'[＆&+]', params.get(str(offset + 4), tags=kAllTags))
+        for text in effect_texts:
+            description, value = re.findall(r'^(.*?)(?:\(([\d.]+%?)\))?$', text.strip())[0]
+            skill.effects.append(Effect(description=description, lvData=[value]))
+        instance.append(skill)
+        offset += 4
+    return instance
+
+
+def p_ascension_cost(params: Params):
+    instance: List[Dict[str, int]] = []
+    if not params:
+        # 玛修 don't need ascension items
+        return instance
+    qp_cost = [
+        [15000, 10000, 15000, 30000, 50000, 100000],  # 0->1
+        [45000, 30000, 45000, 100000, 150000, 300000],  # 1->2
+        [150000, 90000, 150000, 300000, 500000, 1000000],  # 2->3
+        [450000, 300000, 450000, 900000, 1500000, 3000000],  # 3->4
+    ]
+    rarity = params.get('稀有度', cast=int)
+    for i in range(4):
+        lv_cost = p_items(params.get(f'{i}->{i + 1}'))
+        # for template in mwp.parse(text).filter_templates('{{材料消耗'):
+        #     item, num = p_one_item(parse_template(template))
+        #     lv_cost[item] = num
+        lv_cost['QP'] = qp_cost[i][rarity]
+        instance.append(lv_cost)
+    return instance
+
+
+def p_skill_cost(params: Params):
+    instance: List[Dict[str, int]] = []
+    qp_cost = [
+        [2, 1, 2, 5, 10, 20],  # 1->2
+        [4, 2, 4, 10, 20, 40],  # 2->3
+        [12, 6, 12, 30, 60, 120],  # 3->4
+        [16, 8, 16, 40, 80, 160],  # 4->5
+        [40, 20, 40, 100, 200, 400],  # 5->6
+        [50, 25, 50, 125, 250, 500],  # 6->7
+        [100, 50, 100, 250, 500, 1000],  # 7->8
+        [120, 60, 120, 300, 600, 1200],  # 8->9
+        [200, 100, 200, 500, 1000, 2000],  # 9->10
+    ]
+    rarity = params.get('稀有度', cast=int)
+    for i in range(9):
+        text = params.get(f'{i + 1}->{i + 2}')
+        lv_cost = p_items(text)
+        # for template in mwp.parse(text).filter_templates('{{材料消耗'):
+        #     item, num = p_one_item(parse_template(template))
+        #     lv_cost[item] = num
+        lv_cost['QP'] = qp_cost[i][rarity] * 10000
+        instance.append(lv_cost)
+    return instance
+
+
+def p_dress_cost(params: Params):
+    instance: List[Dict[str, int]] = []
+    names_cn, names_jp = [], []
+    no = 1
+    while True:
+        suffix = '' if no == 1 else str(no)
+        two_name = params.get('灵衣名称' + suffix, tags=kAllTags)
+        if two_name is None:
+            break
+        splits = two_name.split('\n')
+        assert len(splits) % 2 == 0, splits
+        center = len(splits) // 2
+        names_cn.append(''.join(splits[0:center]))
+        names_jp.append(''.join(splits[center:]))
+        items = p_items(params.get('素材' + suffix))
+        items['QP'] = 3000000
+        instance.append(items)
+        no += 1
+    return instance, names_cn, names_jp
+
+
+def p_profiles(params: Params):
+    instance: List[SvtProfileData] = []
+    for i in range(8):
+        profile = SvtProfileData()
+        key = '详情' if i == 0 else f'资料{i}'
+        profile.title = '角色详情' if i == 0 else f'个人资料{i}'
+        profile.description = params.get(key, tags=kAllTags)
+        profile.descriptionJp = params.get(key + '日文', tags=kAllTags)
+        profile.condition = params.get(key + '条件', tags=kAllTags)
+        if profile.descriptionJp:
+            instance.append(profile)
+    return instance
+
+
+def p_fool_profiles(params: Params):
+    instance: List[SvtProfileData] = []
+    for suffix in ('', '2'):
+        profile = SvtProfileData()
+        profile.title = '愚人节资料' + suffix
+        profile.description = params.get('中文' + suffix, tags=kAllTags)
+        profile.descriptionJp = params.get('日文' + suffix, tags=kAllTags)
+        profile.condition = None
+        if profile.descriptionJp:
+            instance.append(profile)
     return instance

@@ -25,7 +25,7 @@ class Icons:
             for fn in (filename, filename + '.png', filename + '.jpg'):
                 info = config.site.images[filename].imageinfo
                 if info != {}:
-                    cls.data[key] = GameIcon(filename=fn, url=info['url'])
+                    cls.data[key] = GameIcon(name=fn, url=info['url'])
                     return key
             print(f'Adding icon: "{filename}" not exist!')
             return None
@@ -54,10 +54,10 @@ class Icons:
 
         def _down_icon(key):
             icon = cls.data[key]
-            icon_fp = os.path.join(icon_dir, icon.filename)
+            icon_fp = os.path.join(icon_dir, icon.name)
             if (not os.path.exists(icon_fp) or force) and icon.url:
                 urlretrieve(icon.url, icon_fp)
-                print(f'downloaded {icon.filename}')
+                print(f'downloaded {icon.name}')
             else:
                 # print(f'skip download {item["filename"]}')
                 pass
@@ -77,7 +77,7 @@ class Icons:
             img.putpalette(palette)
             filename = f'{s}未强化.png'
             img.save(os.path.join(icon_dir, filename), format="png")
-            cls.data[f'{s}未强化.png'] = GameIcon(filename=filename, url=None)
+            cls.data[f'{s}未强化.png'] = GameIcon(name=filename, url=None)
         print(f'downloaded icons at {icon_dir}')
 
     @classmethod

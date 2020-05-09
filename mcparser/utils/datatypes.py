@@ -59,22 +59,30 @@ class Jsonable:
         indent = kwargs.pop('indent', 2)
         json.dump(self.to_json(), open(fp, 'w', encoding='utf8'), ensure_ascii=ensure_ascii, indent=indent, **kwargs)
 
-    def attributes_from_map(self, data: Dict[str, Dict], cls_map: Dict[str, Type]):
+    @staticmethod
+    def convert_map(data: Dict[str, Dict], cls: Type, key_type=None):
+        return dict([(key_type(k) if key_type is not None else k, cls().from_json(v)) for k, v in data.items()])
+
+    @staticmethod
+    def convert_list(data: List[Dict], cls: Type):
+        return [cls().from_json(v) for v in data]
+
+    def attributes_from_map(self, data: Dict[str, Dict], cls_map: Dict[str, Type], key_type=None):
         for attr, cls in cls_map.items():
-            self.__dict__[attr] = dict([(k, cls().from_json(v)) for k, v in data.pop(attr, {}).items()])
+            self.__dict__[attr] = Jsonable.convert_map(data.pop(attr, {}), cls, key_type)
 
     def attributes_from_list(self, data: Dict[str, List], cls_map: Dict[str, Type]):
         for attr, cls in cls_map.items():
-            self.__dict__[attr] = [cls().from_json(v) for v in data.pop(attr, [])]
+            self.__dict__[attr] = Jsonable.convert_list(data.pop(attr, []), cls)
 
 
 class GameData(Jsonable):
     def __init__(self, **kwargs):
         self.version: str = ''
-        self.servants: Dict[str, Servant] = {}
+        self.servants: Dict[int, Servant] = {}
         self.unavailable_svts: List[int] = []
-        self.crafts: Dict[str, CraftEssential] = {}
-        self.cmdCodes: Dict[str, CmdCode] = {}
+        self.crafts: Dict[int, CraftEssential] = {}
+        self.cmdCodes: Dict[int, CmdCode] = {}
         self.items: Dict[str, Item] = {}
         self.icons: Dict[str, GameIcon] = {}
         self.events = Events()
@@ -86,9 +94,8 @@ class GameData(Jsonable):
         return self.get_repr(self.version)
 
     def from_json(self, data: Dict):
-        self.attributes_from_map(data,
-                                 {'servants': Servant, 'crafts': CraftEssential, 'cmdCodes': CmdCode, 'items': Item,
-                                  'icons': GameIcon, 'freeQuests': Quest})
+        self.attributes_from_map(data, {'servants': Servant, 'crafts': CraftEssential, 'cmdCodes': CmdCode}, int)
+        self.attributes_from_map(data, {'items': Item, 'icons': GameIcon, 'freeQuests': Quest})
         super(GameData, self).from_json(data)
 
 
@@ -132,7 +139,6 @@ class ServantBaseInfo(Jsonable):
         self.namesOther: List[str] = []
         self.namesJpOther: List[str] = []
         self.namesEnOther: List[str] = []
-        self.illustName = ''
         self.nicknames: List[str] = []
         self.weight = ''
         self.height = ''
@@ -168,9 +174,9 @@ class ServantBaseInfo(Jsonable):
 class TreasureDevice(Jsonable):
     def __init__(self, **kwargs):
         self.state: Optional[str] = None
-        self.openTime: Optional[str] = None
-        self.openCondition: Optional[str] = None
-        self.openQuest: Optional[str] = None
+        self._openTime: Optional[str] = None
+        self._openCondition: Optional[str] = None
+        self._openQuest: Optional[str] = None
         self.name = ''
         self.nameJp = ''
         self.upperName = ''
@@ -193,9 +199,9 @@ class TreasureDevice(Jsonable):
 class Skill(Jsonable):
     def __init__(self, **kwargs):
         self.state = ''
-        self.openTime: Optional[str] = None
-        self.openCondition: Optional[str] = None
-        self.openQuest: Optional[str] = None
+        self._openTime: Optional[str] = None
+        self._openCondition: Optional[str] = None
+        self._openQuest: Optional[str] = None
         self.name = ''
         self.nameJp = ''
         self.rank = ''
@@ -215,32 +221,31 @@ class Skill(Jsonable):
 class Effect(Jsonable):
     def __init__(self, **kwargs):
         self.description = ''
-        self.target: Optional[str] = None
-        self.valueType = ''
+        self._target: Optional[str] = None
+        self._valueType = ''
         self.lvData: List = []
         super().__init__(**kwargs)
 
 
 class ItemCost(Jsonable):
     def __init__(self, **kwargs):
-        self.ascension: List[List[Item]] = []
-        self.skill: List[List[Item]] = []
-        self.dress: List[List[Item]] = []
+        self.ascension: List[Dict[str, int]] = []
+        self.skill: List[Dict[str, int]] = []
+        self.dress: List[Dict[str, int]] = []
+        # dresses here only contains those need items (In fact, only incomplete for mash)
         self.dressName: List[str] = []
         self.dressNameJp: List[str] = []
         super().__init__(**kwargs)
 
     def from_json(self, data: Dict):
-        for key in ('ascension', 'skill', 'dress'):
-            self.__dict__[key] = [[Item().from_json(i) for i in ii] for ii in data.pop(key, [])]
-            pass
         super(ItemCost, self).from_json(data)
 
 
 class SvtProfileData(Jsonable):
     def __init__(self, **kwargs):
-        self.profile = ''
-        self.profileJp = ''
+        self.title = ''
+        self.description = ''
+        self.descriptionJp = ''
         self.condition = ''
         super().__init__(**kwargs)
 
@@ -359,12 +364,12 @@ class Quest(Jsonable):
 
 class GameIcon(Jsonable):
     def __init__(self, **kwargs):
-        self.filename = ''
+        self.name = ''
         self.url = ''
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.get_repr(self.filename)
+        return self.get_repr(self.name)
 
 
 class Events(Jsonable):
