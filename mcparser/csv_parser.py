@@ -1,5 +1,5 @@
 import pickle
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from io import StringIO
 from re import RegexFlag
 from urllib.request import urlopen
@@ -84,38 +84,41 @@ class CSVParser:
         self.data[list(replace_cols.values())] = df[list(replace_cols.keys())]
         G[self.fp] = self.data
 
-    def down_all_wikitext(self, _range: Iterable = range(1, 2000), workers=kWorkersNum):
+    @count_time
+    def down_all_wikitext(self, _range: Iterable = None, workers=kWorkersNum, subpages: Dict[str, str] = None):
+        if _range is None:
+            _range = self.data.index
         executor = ThreadPoolExecutor(max_workers=workers)
-        tasks = []
-        for index in self.data.index:
-            if index not in _range:
-                continue
-            tasks.append(executor.submit(self._download_wikitext, index))
+        valid_index = [i for i in self.data.index if i in _range]
         finished = 0
-        for future in as_completed(tasks):
-            res = future.result()
+        for res in executor.map(self._download_wikitext, valid_index, [subpages] * len(valid_index)):
             finished += 1
-            logger.info(f' - No.{res:<3d} downloaded, finished: [{finished:>3d}/{len(tasks)}]...')
-        executor.shutdown(wait=True)
+            logger.info(f' - No.{res:<3d} downloaded, finished: [{finished:>3d}/{len(_range)}]...')
         self.data[pd.isna(self.data)] = ''
         logger.info(f'All {finished} wikitext downloaded.')
 
-    def _download_wikitext(self, index):
+    @catch_exception
+    def _download_wikitext(self, index: int, subpages: Dict[str, str]):
         name_link = self.data.loc[index, 'name_link']
-        wikitext = get_site_page(name_link)
-        assert wikitext != '', f'No.{index}-{name_link} wikitext is null!'
-        redirect_link = redirect(wikitext)
-        if redirect_link is not None:
-            self.data.loc[index, 'name_link'] = redirect_link
-            wikitext = get_site_page(redirect_link)
-        wikitext = remove_tag(wikitext, ('br', 'heimu', 'del', 'sup', 'ref', 'comment'))
-        wikitext = str(re.sub(r'</?(no)?(only)?(include|wiki)(only)?>', '', wikitext, flags=RegexFlag.IGNORECASE))
+        if threading.current_thread() != threading.main_thread():
+            threading.current_thread().setName(f'No.{index}-{name_link}')
+        pages = {'wikitext': name_link}
+        if subpages:
+            for key, sublink in subpages.items():
+                pages[key] = name_link + '/' + sublink
 
-        if 'wikitext' in self.data.keys():
-            old_text = str(self.data.loc[index, 'wikitext'])
-            if old_text != wikitext:
-                logger.info(f'No.{index:<3}: wikitext changed: len {len(old_text)}->{len(wikitext)}')
-        self.data.loc[index, 'wikitext'] = wikitext
+        for key, page_link in pages.items():
+            wikitext = get_site_page(page_link)
+            assert wikitext != '', f'No.{index}-{page_link} wikitext is null!'
+            redirect_link = redirect(wikitext)
+            assert redirect_link is None, wikitext
+            wikitext = remove_tag(wikitext, ('br', 'heimu', 'del', 'sup', 'ref', 'comment', 'ruby', 'xiuzheng'))
+            wikitext = str(re.sub(r'</?(no)?(only)?(include|wiki)(only)?>', '', wikitext, flags=RegexFlag.IGNORECASE))
+            if key in self.data.keys():
+                old_text = str(self.data.loc[index, key])
+                if old_text != wikitext:
+                    logger.info(f'No.{index:<3}-{page_link}: wikitext changed: len {len(old_text)}->{len(wikitext)}')
+            self.data.loc[index, key] = wikitext
         return index
 
     @staticmethod
@@ -124,7 +127,7 @@ class CSVParser:
         svt_spider.parse_csv(url=config.url_svt,
                              remain_cols=['name_link', 'name_cn', 'name_other'],
                              replace_cols={'avatar': 'icon', 'get': 'obtain', 'np_type': 'nobel_type'})
-        svt_spider.down_all_wikitext()
+        svt_spider.down_all_wikitext(subpages={'wikitext_voice': '语音'})
         svt_spider.dump()
 
     @staticmethod

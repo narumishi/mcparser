@@ -36,7 +36,8 @@ class ServantParser:
     @catch_exception
     def _parse_one(self, index: int) -> Servant:
         mc_link = self.src_data.loc[index, 'name_link']
-        threading.current_thread().setName(f'Servant-{index}-{mc_link}')
+        if threading.current_thread() != threading.main_thread():
+            threading.current_thread().setName(f'Servant-{index}-{mc_link}')
         code = mwp.parse(self.src_data.loc[index, 'wikitext'])
         servant = Servant()
         servant.no = index

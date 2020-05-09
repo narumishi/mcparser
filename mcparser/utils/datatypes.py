@@ -111,6 +111,7 @@ class Servant(Jsonable):
         self.itemCost = ItemCost()
         self.bondPoints: List[int] = []
         self.profiles: List[SvtProfileData] = []
+        self.voices: List[VoiceTable] = []
         self.bondCraft: int = -1
         self.valentineCraft: List[int] = []
         super().__init__(**kwargs)
@@ -120,7 +121,7 @@ class Servant(Jsonable):
 
     def from_json(self, data: Dict):
         self.attributes_from_list(data, {'treasureDevice': TreasureDevice, 'passiveSkills': Skill,
-                                         'profiles': SvtProfileData})
+                                         'profiles': SvtProfileData, 'voices': VoiceTable})
         self.activeSkills = [[Skill().from_json(skill) for skill in skills] for skills in
                              data.pop('activeSkills', [[], [], []])]
         super(Servant, self).from_json(data)
@@ -248,6 +249,33 @@ class SvtProfileData(Jsonable):
         self.descriptionJp = ''
         self.condition = ''
         super().__init__(**kwargs)
+
+
+class VoiceTable(Jsonable):
+    def __init__(self, **kwargs):
+        self.section = ''
+        self.table: List[VoiceRecord] = []
+        super().__init__(**kwargs)
+
+    def from_json(self, data: Dict):
+        self.attributes_from_list(data, {'table': VoiceRecord})
+        super(VoiceTable, self).from_json(data)
+
+    def __repr__(self):
+        return self.get_repr(self.section)
+
+
+class VoiceRecord(Jsonable):
+    def __init__(self, **kwargs):
+        self.title = ''
+        self.text = ''
+        self.textJp = ''
+        self.condition = ''
+        self.fileUrl = ''
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self.get_repr(self.title)
 
 
 class CraftEssential(Jsonable):
