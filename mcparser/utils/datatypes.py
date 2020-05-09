@@ -41,7 +41,7 @@ class Jsonable:
         return json.loads(json.dumps(data, ensure_ascii=False, default=lambda o: o.to_json()))
 
     def from_json(self, data: Dict):
-        """It's WRONG!"""
+        """List[Jsonable] and Dict[Jsonable] must be done in child class's from_json"""
         for k, v in data.items():
             if k not in self.__dict__:
                 continue
@@ -193,10 +193,9 @@ class TreasureDevice(Jsonable):
 class Skill(Jsonable):
     def __init__(self, **kwargs):
         self.state = ''
-        self.openTime = ''
-        self.openCondition = ''
-        self.openQuest = ''
-        self.enhanced = False
+        self.openTime: Optional[str] = None
+        self.openCondition: Optional[str] = None
+        self.openQuest: Optional[str] = None
         self.name = ''
         self.nameJp = ''
         self.rank = ''

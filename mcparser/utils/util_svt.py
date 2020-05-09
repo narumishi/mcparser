@@ -121,3 +121,45 @@ def p_treasure_device(params: Params, instance: TreasureDevice = None):
         assert len(effect.lvData) in (1, 5), effect.lvData
         instance.effects.append(effect)
     return instance
+
+
+def p_active_skill(params: Params, instance: Skill = None):
+    # {{持有技能|技能图标|技能名称|技能名称(日文)|充能时间（a → b）
+    # |技能效果1|Lv.1数值|Lv.2数值|Lv.3数值|Lv.4数值|Lv.5数值|Lv.6数值|Lv.7数值|Lv.8数值|Lv.9数值|Lv.10数值
+    # |<技能效果2>|<Lv.1数值>|...|<Lv.10数值>}}
+    if instance is None:
+        instance = Skill()
+    instance.icon = params.get('1') + '.png'
+    instance.cd = params.get('4', cast=int)
+    name_rank = remove_tag(params.get('2'))
+    name_rank_jp = remove_tag(params.get('3'))
+    cn_splits = name_rank.rsplit(maxsplit=1)
+    jp_splits = name_rank_jp.rsplit(maxsplit=1)
+    assert len(cn_splits) == len(jp_splits), (cn_splits, jp_splits)
+    if len(cn_splits) == 2:
+        name_cn, rank_cn = cn_splits
+        name_jp, rank_jp = jp_splits
+        assert rank_cn == rank_jp and re.match(r'^([A-E]|EX){1,2}[+\-]*$', rank_cn), (rank_cn, rank_jp)
+        instance.name, instance.nameJp = name_cn, name_jp
+        instance.rank = rank_cn
+    else:
+        print('No skill rank: ', cn_splits, jp_splits)
+        instance.name, instance.nameJp = cn_splits[0], jp_splits[0]
+        instance.rank = ''  # or None?
+    offset = 5  # first effect description is at "5"(str)
+    while True:
+        des = params.get(str(offset))
+        if not des:
+            break
+        effect = Effect()
+        effect.description = remove_tag(des)
+        for i in range(1, 11):
+            value = params.get(str(offset + i))
+            if value is None:
+                break
+            else:
+                effect.lvData.append(value)
+        assert len(effect.lvData) in (1, 10), effect
+        instance.effects.append(effect)
+        offset += 11
+    return instance
