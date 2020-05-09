@@ -6,7 +6,7 @@ from urllib.request import urlopen
 
 import pandas as pd
 
-from .util import *
+from mcparser.utils.util import *
 
 
 class CSVParser:

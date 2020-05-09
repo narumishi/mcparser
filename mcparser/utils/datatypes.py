@@ -1,5 +1,5 @@
 import json
-from typing import Any, List, Dict, Type  # noqas
+from typing import Any, List, Dict, Type, Optional  # noqas
 
 
 class Jsonable:
@@ -8,21 +8,37 @@ class Jsonable:
     All json serializable attributes must be initiated an instance.
     """
 
+    def __init__(self, **kwargs):
+        for k, v in kwargs.items():
+            if k in self.__dict__:
+                self.__dict__[k] = v
+            else:
+                print(f'"{k}" not in {self.__class__.__name__}')
+
+    def get_repr(self, *args):
+        if len(args) == 0:
+            return f'{self.__class__.__name__}'
+        else:
+            return f'{self.__class__.__name__}({str(args).strip(",()")})'
+
+    def __repr__(self):
+        return self.get_repr()
+
     def to_json(self, hide_private=True):
         """Recursively convert to json object rather than string.
 
         :param hide_private: if True, private attributes will be ignored.
         :return: json object(dict).
         """
-        data = dict()
-        for k, v in self.__dict__.items():
-            if hasattr(v, 'to_json') and callable(v.to_json):
-                data[k] = v.to_json(hide_private)
-            elif hide_private and k.startswith('_'):
-                continue
-            else:
-                data[k] = v
-        return data
+        # TODO: more efficient way to convert to json object
+        if hide_private:
+            data = {}
+            for k, v in self.__dict__.items():
+                if not k.startswith('_'):
+                    data[k] = v
+        else:
+            data = self.__dict__
+        return json.loads(json.dumps(data, ensure_ascii=False, default=lambda o: o.to_json()))
 
     def from_json(self, data: Dict):
         """It's WRONG!"""
@@ -53,7 +69,7 @@ class Jsonable:
 
 
 class GameData(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.version: str = ''
         self.servants: Dict[str, Servant] = {}
         self.unavailable_svts: List[int] = []
@@ -64,6 +80,10 @@ class GameData(Jsonable):
         self.events = Events()
         self.freeQuests: Dict[str, Quest] = {}
         self.glpk = GLPKData()
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self.get_repr(self.version)
 
     def from_json(self, data: Dict):
         self.attributes_from_map(data,
@@ -73,7 +93,7 @@ class GameData(Jsonable):
 
 
 class Servant(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.no = 0
         self.mcLink = ''
         self.icon = ''
@@ -86,6 +106,10 @@ class Servant(Jsonable):
         self.profiles: List[SvtProfileData] = []
         self.bondCraft: int = -1
         self.valentineCraft: List[int] = []
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self.get_repr(self.no, self.mcLink)
 
     def from_json(self, data: Dict):
         self.attributes_from_list(data, {'treasureDevice': TreasureDevice, 'passiveSkills': Skill,
@@ -96,9 +120,10 @@ class Servant(Jsonable):
 
 
 class ServantBaseInfo(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self._no = 0
         self.obtain = ''
+        self.obtains: List[str] = []
         self.rarity = 0
         self.rarity2 = 0
         self.name = ''
@@ -121,7 +146,7 @@ class ServantBaseInfo(Jsonable):
         self.alignments: List[str] = []
         self.traits: List[str] = []
         self.ability: Dict[str, str] = {}
-        self.illust: List[Dict[str, str]] = []
+        self.illust: List[GameIcon] = []
         self.cards: List[str] = []
         self.cardHits: Dict[str, int] = {}
         self.cardHitsDamage: Dict[str, List[int]] = {}
@@ -137,15 +162,15 @@ class ServantBaseInfo(Jsonable):
         self.starRate = 0
         self.deathRate = 0
         self.criticalRate = 0
+        super().__init__(**kwargs)
 
 
 class TreasureDevice(Jsonable):
-    def __init__(self):
-        self.enhanced = False
-        self.state = ''
-        self.openTime = ''
-        self.openCondition = ''
-        self.opeQuest = ''
+    def __init__(self, **kwargs):
+        self.state: Optional[str] = None
+        self.openTime: Optional[str] = None
+        self.openCondition: Optional[str] = None
+        self.openQuest: Optional[str] = None
         self.name = ''
         self.nameJp = ''
         self.upperName = ''
@@ -155,6 +180,10 @@ class TreasureDevice(Jsonable):
         self.rank = ''
         self.typeText = ''
         self.effects: List[Effect] = []
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self.get_repr(self.state, self.name)
 
     def from_json(self, data: Dict):
         self.attributes_from_list(data, {'effects': Effect})
@@ -162,7 +191,7 @@ class TreasureDevice(Jsonable):
 
 
 class Skill(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.state = ''
         self.openTime = ''
         self.openCondition = ''
@@ -174,6 +203,10 @@ class Skill(Jsonable):
         self.icon = ''
         self.cd = -1
         self.effects: List[Effect] = []
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self.get_repr(self.name)
 
     def from_json(self, data: Dict):
         self.attributes_from_list(data, {'effects': Effect})
@@ -181,20 +214,22 @@ class Skill(Jsonable):
 
 
 class Effect(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.description = ''
-        self.target = ''
+        self.target: Optional[str] = None
         self.valueType = ''
         self.lvData: List = []
+        super().__init__(**kwargs)
 
 
 class ItemCost(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.ascension: List[List[Item]] = []
         self.skill: List[List[Item]] = []
         self.dress: List[List[Item]] = []
         self.dressName: List[str] = []
         self.dressNameJp: List[str] = []
+        super().__init__(**kwargs)
 
     def from_json(self, data: Dict):
         for key in ('ascension', 'skill', 'dress'):
@@ -204,14 +239,15 @@ class ItemCost(Jsonable):
 
 
 class SvtProfileData(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.profile = ''
         self.profileJp = ''
         self.condition = ''
+        super().__init__(**kwargs)
 
 
 class CraftEssential(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.no = 0
         self.rarity = 0
         self.name = ''
@@ -236,10 +272,14 @@ class CraftEssential(Jsonable):
         self.characters: List[str] = []
         self.bond = -1
         self.valentine = -1
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self.get_repr(self.no, self.mcLink)
 
 
 class CmdCode(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.no = 0
         self.rarity = 0
         self.name = ''
@@ -254,32 +294,48 @@ class CmdCode(Jsonable):
         self.descriptionJp = ''
         self.obtain = ''
         self.characters: List[str] = []
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self.get_repr(self.no, self.name)
 
 
 class Item(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.id = -1
         self.name = ''
         self.rarity = 0
         self.category = 0
         self.num = 0
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self.get_repr(self.name)
 
 
 class Enemy(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.name = ''
         self.shownName = ''
         self.className = ''
         self.rank = 0
         self.hp = 0
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self.get_repr(self.shownName)
 
 
 class Battle(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.ap = 0
         self.placeJp = ''
         self.placeCn = ''
         self.enemies: List[List[Enemy]] = []
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self.get_repr(self.placeCn)
 
     def from_json(self, data: Dict):
         self.enemies = [[Enemy().from_json(i) for i in ii] for ii in data.pop('enemies', [])]
@@ -287,7 +343,7 @@ class Battle(Jsonable):
 
 
 class Quest(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.chapter = ''
         self.nameJp = ''
         self.nameCn = ''
@@ -296,19 +352,28 @@ class Quest(Jsonable):
         self.experience = 0
         self.qp = 0
         self.battles: List[Battle] = []
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self.get_repr(self.nameCn)
 
 
 class GameIcon(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.filename = ''
         self.url = ''
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self.get_repr(self.filename)
 
 
 class Events(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.limitEvents: Dict[str, LimitEvent] = {}
         self.mainRecords: Dict[str, MainRecord] = {}
         self.exchangeTickets: Dict[str, ExchangeTicket] = {}
+        super().__init__(**kwargs)
 
     def from_json(self, data: Dict):
         self.attributes_from_map(data, {'limitEvents': LimitEvent, 'mainRecords': MainRecord,
@@ -317,7 +382,7 @@ class Events(Jsonable):
 
 
 class LimitEvent(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.name = ''
         self.link = ''
         self.startTimeJp = ''
@@ -332,10 +397,14 @@ class LimitEvent(Jsonable):
         self.category = ''
         self.extra: Dict[str, str] = {}
         self.lottery: Dict[str, int] = {}
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self.get_repr(self.name)
 
 
 class MainRecord(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.chapter = ''
         self.title = ''
         self.fullname = ''
@@ -343,20 +412,29 @@ class MainRecord(Jsonable):
         self.startTimeCn = ''
         self.drops: Dict[str, int] = {}
         self.rewards: Dict[str, int] = {}
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self.get_repr(self.chapter, self.title)
 
 
 class ExchangeTicket(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.days = 0
         self.monthJp = ''
         self.monthCn = ''
         self.items: List[str] = []
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self.get_repr(self.monthCn, self.monthJp)
 
 
 class GLPKData(Jsonable):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.colNames: List[str] = []
         self.rowNames: List[str] = []
         self.coeff: List[int] = []
         self.matrix: List[List[float]] = []
         self.cnMaxColNum = 0
+        super().__init__(**kwargs)

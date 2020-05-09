@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="Data Files" pattern="file[mcparser]:output//*||file[mcparser]:logs//*" />
+</component>
