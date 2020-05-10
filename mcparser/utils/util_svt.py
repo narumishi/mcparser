@@ -1,6 +1,6 @@
 """Servant related template parser"""
 from .datatypes import *
-from .util import *  # noqas
+from .util import *
 
 kUnavailableSvt = (83, 149, 151, 152, 168, 240)
 

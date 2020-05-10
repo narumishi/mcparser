@@ -1,3 +1,5 @@
+__all__ = ['logging', 'logger']
+
 import logging
 import os
 from logging.handlers import RotatingFileHandler
@@ -31,7 +33,7 @@ def get_logger(name='log', level=logging.INFO, save_path='logs/'):
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
             fp = os.path.join(save_path, f'{name}.log')
-            fh = RotatingFileHandler(fp, encoding='utf8', maxBytes=1024 * 1024, backupCount=3)
+            fh = RotatingFileHandler(fp, encoding='utf8', maxBytes=1024 * 1024 * 3, backupCount=3)
             fh.setFormatter(LOG_FORMATTER)
             fh.setLevel(level)
             _logger.addHandler(fh)

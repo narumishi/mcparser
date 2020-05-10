@@ -1,12 +1,11 @@
 import pickle
 from concurrent.futures import ThreadPoolExecutor
 from io import StringIO
-from re import RegexFlag
 from urllib.request import urlopen
 
 import pandas as pd
 
-from mcparser.utils.util import *
+from .utils.util import *
 
 
 class CSVParser:
@@ -90,12 +89,13 @@ class CSVParser:
             _range = self.data.index
         executor = ThreadPoolExecutor(max_workers=workers)
         valid_index = [i for i in self.data.index if i in _range]
-        finished = 0
-        for res in executor.map(self._download_wikitext, valid_index, [subpages] * len(valid_index)):
-            finished += 1
-            logger.debug(f' - No.{res:<3d} downloaded, finished: [{finished:>3d}/{len(_range)}]...')
+        finish_num, all_num = 0, len(valid_index)
+        for _ in executor.map(self._download_wikitext, valid_index, [subpages] * len(valid_index)):
+            index = valid_index[finish_num]
+            finish_num += 1
+            logger.debug(f'======= No. {index} finished, {finish_num}/{all_num} ========')
         self.data[pd.isna(self.data)] = ''
-        logger.info(f'All {finished} wikitext downloaded.')
+        logger.info(f'All {all_num} wikitext downloaded.')
 
     @catch_exception
     def _download_wikitext(self, index: int, subpages: Dict[str, str]):
@@ -110,14 +110,13 @@ class CSVParser:
         for key, page_link in pages.items():
             wikitext = get_site_page(page_link)
             assert wikitext != '', f'No.{index}-{page_link} wikitext is null!'
-            redirect_link = redirect(wikitext)
+            redirect_link = redirect_page(wikitext)
             assert redirect_link is None, wikitext
             wikitext = remove_tag(wikitext, ('ref', 'br', 'comment', 'del', 'sup', 'include', 'heimu', 'ruby'))
-            wikitext = str(re.sub(r'</?(no)?(only)?(include|wiki)(only)?>', '', wikitext, flags=RegexFlag.IGNORECASE))
             if key in self.data.keys():
                 old_text = str(self.data.loc[index, key])
                 if old_text != wikitext:
-                    logger.info(f'No.{index:<3}-{page_link}: wikitext changed: len {len(old_text)}->{len(wikitext)}')
+                    logger.info(f'No.{index:<3d}-{page_link}: wikitext changed: len {len(old_text)}->{len(wikitext)}')
             self.data.loc[index, key] = wikitext
         return index
 

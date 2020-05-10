@@ -36,7 +36,7 @@ class Icons:
     def add_common_icons(cls):
         jpg_fn = [fn + '.jpg' for fn in ('QP', '圣杯', '传承结晶')]
         png_fn = [fn + '.png' for fn in ('QP', '圣杯', '传承结晶', '圣杯传承结晶', 'Quick', 'Arts', 'Buster',
-                                         '技能强化', '宝具强化', '灵衣开放权')]
+                                         '技能强化', '宝具强化', '灵衣开放权', '0星', '1星', '2星', '3星', '4星', '5星')]
         class_names = ['All', 'Saber', 'Archer', 'Lancer', 'Rider', 'Caster', 'Assassin', 'Berserker', 'Shielder',
                        'Ruler', 'Avenger', 'Alterego', 'MoonCancer', 'Foreigner']
         class_fn = [f'{color}{name}.png' for name in class_names for color in ('铜卡', '金卡')]
@@ -93,5 +93,4 @@ class Icons:
     def load(cls, fn='output/temp/icons.json'):
         if os.path.exists(fn):
             data = json.load(open(fn, encoding='utf8'))
-            for k, v in data.items():
-                cls.data[k] = FileResource(**v)
+            cls.data = Jsonable.convert_map(data, FileResource)

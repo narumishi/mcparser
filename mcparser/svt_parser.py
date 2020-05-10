@@ -1,38 +1,10 @@
-import pickle
-from concurrent.futures import ThreadPoolExecutor
-
-import pandas as pd
-
-from mcparser.utils.icons import Icons
-from mcparser.utils.util_svt import *
+from .base_parser import *
+from .utils.icons import Icons
+from .utils.util_svt import *
 
 
 # noinspection PyMethodMayBeStatic
-class ServantParser:
-    def __init__(self, pkl_fn):
-        self.src_data: pd.DataFrame = pickle.load(open(pkl_fn, 'rb'))
-        self.data: Dict[int, Servant] = {}
-
-    @count_time
-    def parse(self, _range: Iterable = range(1, 2000), workers=kWorkersNum):
-        valid_index = [k for k in self.src_data.index if k in _range]
-        finish_num, all_num = 0, len(valid_index)
-        if workers == 1:
-            for index in valid_index:
-                servant = self._parse_one(index)
-                if servant:
-                    self.data[servant.no] = servant
-                    finish_num += 1
-                    logger.debug(f'======= finished {finish_num}/{all_num} ========')
-        else:
-            executor = ThreadPoolExecutor(max_workers=workers)
-            for servant in executor.map(self._parse_one, valid_index):
-                if servant:
-                    self.data[servant.no] = servant
-                    finish_num += 1
-                logger.debug(f'======= finished {finish_num}/{all_num} ========')
-        return self.data
-
+class ServantParser(BaseParser):
     @catch_exception
     def _parse_one(self, index: int) -> Servant:
         mc_link = self.src_data.loc[index, 'name_link']
@@ -178,6 +150,3 @@ class ServantParser:
                 if record.file:
                     Icons.add(record.file, save=False)
             servant.voices.append(table)
-
-    def dump(self, fp='output/temp/svt.json'):
-        dump_json(self.data, fp, default=lambda o: o.to_json())

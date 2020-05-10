@@ -5,6 +5,7 @@ import sys
 import threading
 import time
 import traceback
+from pprint import pprint  # noqas
 from typing import Any, List, Dict, Type, Union, Iterable, Optional, Sequence, Tuple  # noqas
 
 import mwparserfromhell as mwp  # noqas
@@ -14,8 +15,7 @@ from mwparserfromhell.nodes.tag import Tag  # noqas
 from mwparserfromhell.nodes.template import Template  # noqas
 from mwparserfromhell.wikicode import Wikicode  # noqas
 
-from mcparser.base.config import *  # noqas
-from mcparser.base.log import logger
+from mcparser.base.log import *
 
 Wikitext = Union[str, Wikicode, Template]
 G = {}  # global vars
@@ -66,7 +66,7 @@ def catch_exception(func):
     Decorator can be applied to multi-threading but multi-processing
     """
 
-    def wrapper(*args, **kwargs):
+    def catch_exception_wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
         except:  # noqas
@@ -74,31 +74,15 @@ def catch_exception(func):
             logger.error(f'================= Error in {threading.current_thread()} ====================\n'
                          f'{"".join(traceback.format_exception(exc_type, exc_value, exc_traceback))}')
 
-    return wrapper
+    return catch_exception_wrapper
 
 
 def count_time(func):
-    def wrapper(*args, **kwargs):
+    def count_time_wrapper(*args, **kwargs):
         t0 = time.time()
         res = func(*args, **kwargs)
         dt = time.time() - t0
-        logger.info(f'\n========= {func} run for {dt:.3f} secs =========\n\n')
+        logger.info(f'Counting time:\n========= {func} run for {dt:.3f} secs =========\n\n')
         return res
 
-    return wrapper
-
-
-# %% mw site
-def get_site_page(name, isfile=False, n=10):
-    retry_no = 0
-    while retry_no < n:
-        try:
-            if isfile:
-                result = config.site.images[name]
-            else:
-                result = config.site.pages[name].text()
-            return result
-        except:  # noqas
-            retry_no += 1
-    logger.error(f'Error download page "{name}" after {n} retry.')
-    return None
+    return count_time_wrapper

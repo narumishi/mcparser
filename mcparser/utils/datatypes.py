@@ -284,6 +284,7 @@ class CraftEssential(Jsonable):
         self.rarity = 0
         self.name = ''
         self.nameJp = ''
+        self.nameOther: List[str] = []
         self.mcLink = ''
         self.icon = ''
         self.illust = ''
@@ -301,6 +302,7 @@ class CraftEssential(Jsonable):
         self.description = ''
         self.descriptionJp = ''
         self.category = 0
+        self.categoryText = ''
         self.characters: List[str] = []
         self.bond = -1
         self.valentine = -1

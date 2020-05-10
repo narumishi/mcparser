@@ -1,6 +1,7 @@
-from .basic import *  # noqas
+from ..base.basic import *
+from ..base.config import *
 
-kAllTags = ('ref', 'br', 'comment', 'del', 'sup', 'include', 'heimu', 'tegong', 'link', 'ruby', 'bold')
+kAllTags = ('ref', 'br', 'comment', 'del', 'sup', 'nowiki', 'include', 'heimu', 'texing', 'link', 'ruby', 'bold')
 
 
 class Params(dict):
@@ -22,7 +23,24 @@ class Params(dict):
         return v
 
 
+# %% site related
+def get_site_page(name, isfile=False, n=10):
+    retry_no = 0
+    while retry_no < n:
+        try:
+            if isfile:
+                result = config.site.images[name]
+            else:
+                result = config.site.pages[name].text()
+            return result
+        except:  # noqas
+            retry_no += 1
+    logger.error(f'Error download page "{name}" after {n} retry.')
+    return None
+
+
 # %% common used wikitext edit functions
+
 def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
     string = string.strip()
     code = mwp.parse(string)
@@ -43,9 +61,12 @@ def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
         if tag_name in tags:
             for tag in code.filter_tags(matches=r'^<' + tag_name):  # type:mwp.nodes.tag.Tag
                 string = string.replace(str(tag), str(tag.contents))
+
+    if 'nowiki' in tags:
+        string = re.sub(r'<\s*/?\s*nowiki\s*>', '', string)
     if 'include' in tags:
-        for tag in code.filter_tags(matches='^<(nowiki|noinclude|includeonly|onlyinclude)'):
-            string = string.replace(str(tag), str(tag.contents))
+        # may nested
+        string = re.sub(r'<\s*/?\s*(include|onlyinclude|includeonly|noinclude)\s*>', '', string)
 
     # wiki templates
     # just keep 1st
@@ -55,17 +76,19 @@ def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
             string = string.replace(str(template), params.get('1', ''))
 
     # replace
-    if 'tegong' in tags:
+    if 'texing' in tags:
         for template in code.filter_templates(matches=r'^{{特性'):
-            params_trait = parse_template(template)
-            string = string.replace(str(template), params_trait.get('2', params_trait.get('1')))
+            params = parse_template(template)
+            string = string.replace(str(template), params.get('2', params.get('1')))
     if 'ruby' in tags:
         for template in code.filter_templates(matches=r'^{{ruby'):
             params = parse_template(template)
             string = string.replace(str(template), f"{params.get('1')}[{params.get('2')}]")
     if 'link' in tags:
-        # [[File:a.jpg|b|c]] or [[语音关联从者::sb]]
+        # remove [[File:a.jpg|b|c]] - it show img
+        string = re.sub(r'\[\[(文件|File):([^\[\]]*?)\]\]', '', string)
         for wiki_link in code.filter_wikilinks():  # type:mwp.nodes.wikilink.Wikilink
+            # [[语音关联从者::somebody]]
             link = re.split(r':+', str(wiki_link.title))[-1]
             shown_text = wiki_link.text
             if shown_text:
@@ -88,17 +111,17 @@ def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
     return string
 
 
-def redirect(code, default=None):
+def redirect_page(code, default=None):
     if 'redirect' in code or '重定向' in code:
         new_page = trim(mwp.parse(code).filter_wikilinks()[0].title)
-        logger.info(f'redirect {default} to {new_page}')
+        logger.info(f'Redirect {default} to {new_page}')
         return new_page
     else:
         return default
 
 
 def parse_template(template: Wikitext, match_pattern: str = None) -> Params:
-    if isinstance(template, (str, Wikicode)):
+    if not isinstance(template, Template):
         templates = mwp.parse(template).filter_templates(matches=match_pattern)
         if len(templates) == 0:
             return Params()
