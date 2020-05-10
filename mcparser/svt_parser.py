@@ -23,14 +23,14 @@ class ServantParser:
                 if servant:
                     self.data[servant.no] = servant
                     finish_num += 1
-                    print(f'\r======= finished {finish_num}/{all_num} ========', end='')
+                    logger.debug(f'======= finished {finish_num}/{all_num} ========')
         else:
             executor = ThreadPoolExecutor(max_workers=workers)
             for servant in executor.map(self._parse_one, valid_index):
                 if servant:
                     self.data[servant.no] = servant
                     finish_num += 1
-                print(f'\r======= finished {finish_num}/{all_num} ========  ', end='')
+                logger.debug(f'======= finished {finish_num}/{all_num} ========')
         return self.data
 
     @catch_exception
@@ -124,7 +124,7 @@ class ServantParser:
         for skill in servant.passiveSkills:
             Icons.add(skill.icon)
         if len(servant.passiveSkills) == 0:
-            print(f'No passive skills: No.{index}-{servant.mcLink}')
+            logger.info(f'No passive skills: No.{index}-{servant.mcLink}')
 
     def _item_cost(self, index: int, code: Wikicode, servant: Servant):
         sections = code.get_sections(matches='素材需求')
@@ -137,7 +137,7 @@ class ServantParser:
             section: Wikicode = sections[0]
             servant.itemCost.ascension = p_ascension_cost(parse_template(section, r'^{{灵基再临素材'))
         else:
-            print(f'No.{index}-{servant.mcLink} has no ascension items', end='')
+            logger.warning(f'No.{index}-{servant.mcLink} has no ascension items', end='')
 
         # skill
         sections = code.get_sections(matches='技能强化')
@@ -145,7 +145,7 @@ class ServantParser:
             section: Wikicode = sections[0]
             servant.itemCost.skill = p_skill_cost(parse_template(section, r'^{{技能升级素材'))
         else:
-            print(f'No.{index}-{servant.mcLink} has no skill up items', end='')
+            logger.warning(f'No.{index}-{servant.mcLink} has no skill up items', end='')
 
         # dress
         sections = code.get_sections(matches='灵衣开放')
@@ -153,7 +153,6 @@ class ServantParser:
             section: Wikicode = sections[0]
             dress_result = p_dress_cost(parse_template(section, r'^{{灵衣开放素材'))
             servant.itemCost.dress, servant.itemCost.dressName, servant.itemCost.dressNameJp = dress_result
-
         return
 
     def _bond_points(self, index: int, code: Wikicode, servant: Servant):
@@ -173,7 +172,7 @@ class ServantParser:
 
     def _voices(self, index: int, code: Wikicode, servant: Servant):  # noqas
         for template in code.filter_templates(matches=r'^{{#invoke:VoiceTable'):
-            params = parse_template(template, r'^{{#invoke:VoiceTable')
+            params = parse_template(remove_tag(str(template)), r'^{{#invoke:VoiceTable')
             table = p_voice_table(params)
             for record in table.table:
                 if record.file:

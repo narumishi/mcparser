@@ -93,7 +93,7 @@ class CSVParser:
         finished = 0
         for res in executor.map(self._download_wikitext, valid_index, [subpages] * len(valid_index)):
             finished += 1
-            logger.info(f' - No.{res:<3d} downloaded, finished: [{finished:>3d}/{len(_range)}]...')
+            logger.debug(f' - No.{res:<3d} downloaded, finished: [{finished:>3d}/{len(_range)}]...')
         self.data[pd.isna(self.data)] = ''
         logger.info(f'All {finished} wikitext downloaded.')
 
@@ -112,7 +112,7 @@ class CSVParser:
             assert wikitext != '', f'No.{index}-{page_link} wikitext is null!'
             redirect_link = redirect(wikitext)
             assert redirect_link is None, wikitext
-            wikitext = remove_tag(wikitext, ('br', 'heimu', 'del', 'sup', 'ref', 'comment', 'ruby', 'xiuzheng'))
+            wikitext = remove_tag(wikitext, ('ref', 'br', 'comment', 'del', 'sup', 'include', 'heimu', 'ruby'))
             wikitext = str(re.sub(r'</?(no)?(only)?(include|wiki)(only)?>', '', wikitext, flags=RegexFlag.IGNORECASE))
             if key in self.data.keys():
                 old_text = str(self.data.loc[index, key])

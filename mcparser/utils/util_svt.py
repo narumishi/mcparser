@@ -141,7 +141,7 @@ def p_active_skill(params: Params, instance: Skill = None):
         instance.name, instance.nameJp = name_cn, name_jp
         instance.rank = rank_cn
     else:
-        print('No skill rank: ', cn_splits, jp_splits)
+        logger.info(f'Active skill - no skill rank: {cn_splits}, {jp_splits}')
         instance.name, instance.nameJp = cn_splits[0], jp_splits[0]
         instance.rank = ''  # or None?
     offset = 5  # first effect description is at "5"(str)

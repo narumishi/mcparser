@@ -85,6 +85,7 @@ class Icons:
 
     @classmethod
     def dump(cls, fn='output/temp/icons.json'):
+        """Call `download_icon()` before dump icons json"""
         print(f'dumping icon data at {fn}')
         return dump_json(cls.data, fn, default=lambda o: o.to_json(), sort_keys=True)
 

@@ -1,6 +1,6 @@
 from .basic import *  # noqas
 
-kAllTags = ('br', 'heimu', 'del', 'sup', 'bold', 'ref', 'comment', 'link', 'tegong', 'xiuzheng', 'ruby')
+kAllTags = ('ref', 'br', 'comment', 'del', 'sup', 'include', 'heimu', 'tegong', 'link', 'ruby', 'bold')
 
 
 class Params(dict):
@@ -25,55 +25,66 @@ class Params(dict):
 # %% common used wikitext edit functions
 def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
     string = string.strip()
-    string = re.sub(r'<br *?/? *?>', '\n', string)
-    if string in ('-', '—', ''):
-        return ''
-    old = string
+    code = mwp.parse(string)
+
+    # html tags
+    # REMOVE - ref/comment
+    for tag_name in ('ref',):
+        if tag_name in tags:
+            for tag in code.filter_tags(matches=r'^<' + tag_name):
+                string = string.replace(str(tag), '')
+    if 'comment' in tags:
+        for comment in code.filter_comments():
+            string = string.replace(str(comment), '')
     if 'br' in tags:
         string = re.sub(r'<br *?/? *?>', '\n', string)
-    # shadow deal
+    # Replace with contents - sup/del/noinclude
+    for tag_name in ('del', 'sup'):
+        if tag_name in tags:
+            for tag in code.filter_tags(matches=r'^<' + tag_name):  # type:mwp.nodes.tag.Tag
+                string = string.replace(str(tag), str(tag.contents))
+    if 'include' in tags:
+        for tag in code.filter_tags(matches='^<(nowiki|noinclude|includeonly|onlyinclude)'):
+            string = string.replace(str(tag), str(tag.contents))
+
+    # wiki templates
+    # just keep 1st
     if 'heimu' in tags:
-        shadows = re.findall(r'({{(?:黑幕|heimu)\|(.+?)}})', string)
-        for r in shadows:
-            replaced = r[1].split('|')[0]
-            string = string.replace(r[0], replaced)
-    if 'tegong' in tags:
-        for trait in mwp.parse(string).filter_templates(matches=r'^{{特性'):
-            params_trait = parse_template(trait)
-            string = string.replace(str(trait), params_trait.get('2', params_trait.get('1')))
-    if 'xiuzheng' in tags:
-        for template in mwp.parse(string).filter_templates(matches=r'{{修正'):
+        for template in code.filter_templates(matches=r'^{{(黑幕|heimu|模糊|修正)'):
             params = parse_template(template)
             string = string.replace(str(template), params.get('1', ''))
+
+    # replace
+    if 'tegong' in tags:
+        for template in code.filter_templates(matches=r'^{{特性'):
+            params_trait = parse_template(template)
+            string = string.replace(str(template), params_trait.get('2', params_trait.get('1')))
     if 'ruby' in tags:
-        for template in mwp.parse(string).filter_templates(matches=r'{{ruby'):
+        for template in code.filter_templates(matches=r'^{{ruby'):
             params = parse_template(template)
             string = string.replace(str(template), f"{params.get('1')}[{params.get('2')}]")
-    # del/sup tag, bold('''): remain content
-    if 'del' in tags:
-        string = re.sub(r'<(del|sup)>(.*?)</\1>', r'\2', string)
-    string = re.sub(r'<(nowiki)>(.*?)</\1>', r'\2', string)
+    if 'link' in tags:
+        # [[File:a.jpg|b|c]] or [[语音关联从者::sb]]
+        for wiki_link in code.filter_wikilinks():  # type:mwp.nodes.wikilink.Wikilink
+            link = re.split(r':+', str(wiki_link.title))[-1]
+            shown_text = wiki_link.text
+            if shown_text:
+                shown_text = str(shown_text).split('|', maxsplit=1)[0]
+            string = string.replace(str(wiki_link), shown_text or link)
+
+    # special
     if 'bold' in tags:
         string = re.sub(r"'''([^']*?)'''", r'\1', string)
-    # ref tag, html annotation tag, remove content
-    if 'ref' in tags:
-        string = re.sub(r'<ref([^<>]*?)>(.*?)</ref>', '', string)
-    if 'comment' in tags:
-        string = re.sub(r'<!--([\w\W]*?)-->', '', string)
-    # wikilink,[[File:mash.jpg|params_or_text]]->(whole string, File, mash.jpg, params_or_text)
-    if 'link' in tags:
-        links = re.findall(r'(\[\[(?:(.*?):)?([^|\]]+?)(?:\|(.*?))?\]\])', string)
-        for link in links:
-            if link[1] == '':
-                string = string.replace(link[0], link[3] or link[2])
-            else:
-                string = string.replace(link[0], '')
-    # special
-    string = string.replace('{{jin}}', 'jin')  # Okita Souji Alter
+    # Okita Souji Alter
+    string = string.replace('{{jin}}', 'jin')
 
     # final check
-    if string != old and console:
-        logger.info(f'remove tags: from {old} -> {string}')
+    old_string = str(code)
+    if string != old_string and console:
+        logger.info(f'remove tags: from {len(old_string)}->{len(string)}\n'
+                    f'Old string:{old_string}\n\nNew string: {string}')
+    if string in ('-', '—', ''):
+        return ''
     return string
 
 

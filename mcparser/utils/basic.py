@@ -82,7 +82,7 @@ def count_time(func):
         t0 = time.time()
         res = func(*args, **kwargs)
         dt = time.time() - t0
-        print(f'========= {func} run for {dt:.3f} secs =========')
+        logger.info(f'\n========= {func} run for {dt:.3f} secs =========\n\n')
         return res
 
     return wrapper
@@ -94,7 +94,7 @@ def get_site_page(name, isfile=False, n=10):
     while retry_no < n:
         try:
             if isfile:
-                result = config.site.images[name].save()
+                result = config.site.images[name]
             else:
                 result = config.site.pages[name].text()
             return result
