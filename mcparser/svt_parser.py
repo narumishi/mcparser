@@ -1,5 +1,5 @@
 from .base_parser import *
-from .utils.icons import Icons
+from .utils.icons import ICONS
 from .utils.util_svt import *
 
 
@@ -15,7 +15,7 @@ class ServantParser(BaseParser):
         servant.no = index
         servant.mcLink = mc_link
         servant.icon = os.path.basename(self.src_data.loc[index, 'icon'])
-        Icons.add(servant.icon)
+        ICONS.add(servant.icon)
 
         self._base_info(index, code, servant)
         self._treasure_device(index, code, servant)
@@ -84,7 +84,7 @@ class ServantParser(BaseParser):
                 skill = p_active_skill(params)
                 skill.state = state
                 one_skill.append(skill)
-                Icons.add(skill.icon)
+                ICONS.add(skill.icon)
             servant.activeSkills.append(one_skill)
 
     def _passive_skill(self, index: int, code: Wikicode, servant: Servant):
@@ -94,7 +94,7 @@ class ServantParser(BaseParser):
         params = parse_template(remove_tag(str(sections[0])), r'^{{职阶技能')
         servant.passiveSkills = p_passive_skill(params)
         for skill in servant.passiveSkills:
-            Icons.add(skill.icon)
+            ICONS.add(skill.icon)
         if len(servant.passiveSkills) == 0:
             logger.info(f'No passive skills: No.{index}-{servant.mcLink}')
 
@@ -148,5 +148,5 @@ class ServantParser(BaseParser):
             table = p_voice_table(params)
             for record in table.table:
                 if record.file:
-                    Icons.add(record.file, save=False)
+                    ICONS.add(record.file, save=False)
             servant.voices.append(table)

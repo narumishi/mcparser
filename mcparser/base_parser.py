@@ -44,6 +44,11 @@ class BaseParser(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     @catch_exception
     def _parse_one(self, index: int) -> Any:
+        """One job for one record.
+
+        If works > 1, jobs are run in multi-threading, decorate method with `@catch_exception` and
+        set friendly thread name at the start, so that decorator will know which thread went wrong.
+        """
         pass
 
     def dump(self, fp):

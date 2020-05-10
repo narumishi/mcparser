@@ -1,6 +1,6 @@
 from .base_parser import *
 from .utils.datatypes import CraftEssential
-from .utils.icons import Icons
+from .utils.icons import ICONS
 from .utils.util_other import p_craft_essential
 
 
@@ -54,7 +54,7 @@ class CraftParser(BaseParser):
         craft.icon = os.path.basename(self.src_data.loc[index, 'icon'])
 
         for icon in [craft.icon, craft.skillIcon] + craft.eventIcons:
-            Icons.add(icon)
+            ICONS.add(icon)
         check_equal('hp min', int(hp1), craft.hpMin)
         check_equal('hp max', int(hp_max), craft.hpMax)
         check_equal('atk min', int(atk1), craft.atkMin)

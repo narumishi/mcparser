@@ -8,10 +8,10 @@ import pandas as pd
 from .utils.util import *
 
 
-class CSVParser:
+class WikiGetter:
     """Download html code to get csv str then parse it"""
 
-    def __init__(self, fp, reload=True):
+    def __init__(self, fp: str, reload=True):
         self.fp = fp
         if reload is False and G.get(fp) is not None:
             data = G[fp]
@@ -23,10 +23,11 @@ class CSVParser:
         G[fp] = data
         self.data: pd.DataFrame = data
 
-    def dump(self):
-        os.makedirs(os.path.dirname(self.fp), exist_ok=True)
-        pickle.dump(self.data, open(self.fp, 'wb'))
-        self.data.to_json(open(self.fp + '.json', 'w', encoding='utf8'), orient='index', force_ascii=False, indent=2)
+    def dump(self, fp=None):
+        fp = fp or self.fp
+        os.makedirs(os.path.dirname(fp), exist_ok=True)
+        pickle.dump(self.data, open(fp, 'wb'))
+        self.data.to_json(open(fp + '.json', 'w', encoding='utf8'), orient='index', force_ascii=False, indent=2)
 
     def parse_csv(self, url, remain_cols: List[str] = None, replace_cols: Dict[str, str] = None):
         """Download html and parse csv str to DataFrame
@@ -121,17 +122,19 @@ class CSVParser:
         return index
 
     @staticmethod
-    def start_svt_spider(path='output/wikitext'):
-        svt_spider = CSVParser(os.path.join(path, 'svt.pkl'), reload=False)
+    def get_servant_data(fp='output/wikitext/svt.pkl', **kwargs):
+        svt_spider = WikiGetter(fp, reload=kwargs.pop('reload', True))
         svt_spider.parse_csv(url=config.url_svt,
                              remain_cols=['name_link', 'name_cn', 'name_other'],
                              replace_cols={'avatar': 'icon', 'get': 'obtain', 'np_type': 'nobel_type'})
-        svt_spider.down_all_wikitext(subpages={'wikitext_voice': '语音'})
+        svt_spider.down_all_wikitext(_range=kwargs.pop('_range', None),
+                                     workers=kwargs.pop('workers', kWorkersNum),
+                                     subpages={'wikitext_voice': '语音'})
         svt_spider.dump()
 
     @staticmethod
-    def start_craft_spider(path='output/wikitext'):
-        craft_spider = CSVParser(os.path.join(path, 'craft.pkl'), reload=False)
+    def get_craft_data(fp='output/wikitext/craft.pkl', **kwargs):
+        craft_spider = WikiGetter(fp, reload=kwargs.pop('reload', True))
         craft_spider.parse_csv(url=config.url_craft,
                                remain_cols=['name_link', 'name', 'name_other', 'icon', 'hp1', 'hpmax', 'atk1', 'atkmax',
                                             'des', 'des_max', 'type_marker'],
@@ -139,14 +142,16 @@ class CSVParser:
         for index in craft_spider.data.index:
             craft_spider.data.loc[index, 'des'] = remove_tag(craft_spider.data.loc[index, 'des'])
             craft_spider.data.loc[index, 'des_max'] = remove_tag(craft_spider.data.loc[index, 'des_max'])
-        craft_spider.down_all_wikitext()
+        craft_spider.down_all_wikitext(_range=kwargs.pop('_range', None),
+                                       workers=kwargs.pop('workers', kWorkersNum))
         craft_spider.dump()
 
     @staticmethod
-    def start_cmd_spider(path='output/wikitext'):
-        cmd_spider = CSVParser(os.path.join(path, 'cmd.pkl'), reload=False)
+    def get_cmd_data(fp='output/wikitext/craft.pkl', **kwargs):
+        cmd_spider = WikiGetter(fp, reload=kwargs.pop('reload', True))
         cmd_spider.parse_csv(url=config.url_cmd,
                              remain_cols=['name_link', 'name', 'method', 'method_link_text', 'icon'],
                              replace_cols={})
-        cmd_spider.down_all_wikitext()
+        cmd_spider.down_all_wikitext(_range=kwargs.pop('_range', None),
+                                     workers=kwargs.pop('workers', kWorkersNum))
         cmd_spider.dump()

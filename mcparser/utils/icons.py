@@ -7,33 +7,41 @@ from .datatypes import *
 from .util import *
 
 
-class Icons:
-    filename = 'icons.json'
-    data: Dict[str, FileResource] = {}
+class _Icons:
+    _instance = None
 
-    @classmethod
-    def add(cls, filename: str, key: str = None, save: bool = True):
-        if cls.data == {}:
-            cls.load()
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            return super().__new__(cls, *args, **kwargs)
+        else:
+            return cls._instance
+
+    def __init__(self, fp='output/temp/icons.json'):
+        self.fp = fp
+        self.data: Dict[str, FileResource] = {}
+        self.load(fp)
+
+    def add(self, filename: str, key: str = None, save: bool = True):
+        if self.data == {}:
+            self.load()
         fn_split = re.split(r'[(（]有框[)）]', filename)
         if len(fn_split) > 1:
             print(f'add a 无框 version of {"".join(fn_split)}')
-            cls.add(''.join(fn_split))
+            self.add(''.join(fn_split))
         if key is None:
             key = filename
-        if key not in cls.data:
+        if key not in self.data:
             for fn in (filename, filename + '.png', filename + '.jpg'):
                 info = config.site.images[filename].imageinfo
                 if info != {}:
-                    cls.data[key] = FileResource(name=key, filename=fn, url=info['url'], save=save)
+                    self.data[key] = FileResource(name=key, filename=fn, url=info['url'], save=save)
                     return key
             print(f'Adding icon: "{filename}" not exist!')
             return None
         else:
             return key
 
-    @classmethod
-    def add_common_icons(cls):
+    def add_common_icons(self):
         jpg_fn = [fn + '.jpg' for fn in ('QP', '圣杯', '传承结晶')]
         png_fn = [fn + '.png' for fn in ('QP', '圣杯', '传承结晶', '圣杯传承结晶', 'Quick', 'Arts', 'Buster',
                                          '技能强化', '宝具强化', '灵衣开放权', '0星', '1星', '2星', '3星', '4星', '5星')]
@@ -42,18 +50,18 @@ class Icons:
         class_fn = [f'{color}{name}.png' for name in class_names for color in ('铜卡', '金卡')]
         class_back_fn = [f'{name}{color}卡背.png' for name in class_names for color in ('金', '银', '铜', '黑')]
         for fn in (jpg_fn + png_fn + class_fn + class_back_fn):
-            cls.add(fn)
-        cls.add('Beast.png', '金卡Beast.png')
-        cls.add('Beast-gray.png', '铜卡Beast.png')
+            self.add(fn)
+        self.add('Beast.png', '金卡Beast.png')
+        self.add('Beast-gray.png', '铜卡Beast.png')
 
-    @classmethod
-    def download_icons(cls, icon_dir='output/temp/icons', force=False):
-        print(f'downloading icons at {icon_dir}')
-        cls.add_common_icons()
+    def download_icons(self, icon_dir=None, force=False):
+        icon_dir = icon_dir or os.path.join(os.path.dirname(self.fp), 'icons')
+        logger.info(f'downloading icons at {icon_dir}')
+        self.add_common_icons()
         os.makedirs(icon_dir, exist_ok=True)
 
         def _down_icon(key):
-            icon = cls.data[key]
+            icon = self.data[key]
             icon_fp = os.path.join(icon_dir, icon.name)
             if not icon.url:
                 # resolve exact file url
@@ -69,7 +77,7 @@ class Icons:
                 print(f'compress icon {key}')
 
         executor = ThreadPoolExecutor(max_workers=kWorkersNum * 2)
-        for _ in executor.map(_down_icon, cls.data.keys()):
+        for _ in executor.map(_down_icon, self.data.keys()):
             pass
         for s in ('技能', '宝具'):
             img: Image.Image = Image.open(os.path.join(icon_dir, f'{s}强化.png'))
@@ -80,17 +88,20 @@ class Icons:
             img.putpalette(palette)
             filename = f'{s}未强化.png'
             img.save(os.path.join(icon_dir, filename), format="png")
-            cls.data[filename] = FileResource(name=filename, url=None, save=False)
+            self.data[filename] = FileResource(name=filename, url=None, save=False)
         print(f'downloaded icons at {icon_dir}')
 
-    @classmethod
-    def dump(cls, fn='output/temp/icons.json'):
+    def dump(self, fp=None):
         """Call `download_icon()` before dump icons json"""
-        print(f'dumping icon data at {fn}')
-        return dump_json(cls.data, fn, default=lambda o: o.to_json(), sort_keys=True)
+        fp = fp or self.fp
+        print(f'dumping icon data at {fp}')
+        return dump_json(self.data, fp, default=lambda o: o.to_json(), sort_keys=True)
 
-    @classmethod
-    def load(cls, fn='output/temp/icons.json'):
-        if os.path.exists(fn):
-            data = json.load(open(fn, encoding='utf8'))
-            cls.data = Jsonable.convert_map(data, FileResource)
+    def load(self, fp=None):
+        self.fp = fp = fp or self.fp
+        if os.path.exists(fp):
+            data = json.load(open(fp, encoding='utf8'))
+            self.data = Jsonable.convert_map(data, FileResource)
+
+
+ICONS = _Icons()
