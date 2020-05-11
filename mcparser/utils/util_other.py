@@ -68,3 +68,28 @@ def p_craft_essential(params: Params, instance: CraftEssential = None):
     for i in range(1, 26):
         list_append(instance.characters, params.get(str(i)))
     return instance
+
+
+def p_cmd_code(params: Params, instance: CmdCode = None):
+    if instance is None:
+        instance = CmdCode()
+    instance.rarity = params.get('稀有度', cast=int)
+    instance.no = params.get('纹章id', cast=int)
+    instance.name = params.get('名称')
+    instance.nameJp = params.get('日文名称')
+    instance.mcLink = params.get('链接名')
+    instance.illust = params.get('图片名', instance.name) + '.png'
+    for i in range(1, 9):
+        key = '画师' if i == 1 else f'画师{i}'
+        list_append(instance.illustrators, params.get(key))
+
+    instance.skillIcon = params.get('图标') + '.png'
+    instance.skill = params.get('持有技能', tags=kAllTags)
+    instance.description = params.get('解说', tags=kAllTags)
+    instance.descriptionJp = params.get('日文解说', tags=kAllTags)
+    instance.categoryText = params.get('纹章分类')
+    instance.characters = []
+    list_append(instance.characters, params.get('出场角色'))
+    for i in range(1, 26):
+        list_append(instance.characters, params.get(str(i)))
+    return instance

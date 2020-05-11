@@ -315,10 +315,11 @@ class CraftEssential(Jsonable):
 class CmdCode(Jsonable):
     def __init__(self, **kwargs):
         self.no = 0
+        self.mcLink = ''
         self.rarity = 0
         self.name = ''
         self.nameJp = ''
-        self.mcLink = ''
+        self.nameOther: List[str] = []
         self.icon = ''
         self.illust = ''
         self.illustrators: List[str] = []
@@ -327,6 +328,8 @@ class CmdCode(Jsonable):
         self.description = ''
         self.descriptionJp = ''
         self.obtain = ''
+        self.category = 0
+        self.categoryText = ''
         self.characters: List[str] = []
         super().__init__(**kwargs)
 

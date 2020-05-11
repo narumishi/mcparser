@@ -53,3 +53,4 @@ class BaseParser(metaclass=abc.ABCMeta):
 
     def dump(self, fp):
         dump_json(self.data, fp, default=lambda o: o.to_json())
+        logger.info(f'{self.__class__.__name__}: dump parsed data at "{fp}"')

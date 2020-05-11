@@ -94,8 +94,9 @@ class _Icons:
     def dump(self, fp=None):
         """Call `download_icon()` before dump icons json"""
         fp = fp or self.fp
-        print(f'dumping icon data at {fp}')
-        return dump_json(self.data, fp, default=lambda o: o.to_json(), sort_keys=True)
+        dump_json(self.data, fp, default=lambda o: o.to_json(), sort_keys=True)
+        logger.info(f'dump icons data at "{fp}"')
+        return
 
     def load(self, fp=None):
         self.fp = fp = fp or self.fp

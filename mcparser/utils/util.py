@@ -79,7 +79,8 @@ def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
     if 'texing' in tags:
         for template in code.filter_templates(matches=r'^{{特性'):
             params = parse_template(template)
-            string = string.replace(str(template), params.get('2', params.get('1')))
+            replace = params.get('2', params.get('1')).strip('〔〕')
+            string = string.replace(str(template), f'〔{replace}〕')
     if 'ruby' in tags:
         for template in code.filter_templates(matches=r'^{{ruby'):
             params = parse_template(template)

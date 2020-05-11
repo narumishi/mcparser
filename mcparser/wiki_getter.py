@@ -28,6 +28,7 @@ class WikiGetter:
         os.makedirs(os.path.dirname(fp), exist_ok=True)
         pickle.dump(self.data, open(fp, 'wb'))
         self.data.to_json(open(fp + '.json', 'w', encoding='utf8'), orient='index', force_ascii=False, indent=2)
+        logger.info(f'dump pickle and json data at "{fp}(.json)"')
 
     def parse_csv(self, url, remain_cols: List[str] = None, replace_cols: Dict[str, str] = None):
         """Download html and parse csv str to DataFrame
@@ -147,10 +148,11 @@ class WikiGetter:
         craft_spider.dump()
 
     @staticmethod
-    def get_cmd_data(fp='output/wikitext/craft.pkl', **kwargs):
+    def get_cmd_data(fp='output/wikitext/cmd.pkl', **kwargs):
         cmd_spider = WikiGetter(fp, reload=kwargs.pop('reload', True))
         cmd_spider.parse_csv(url=config.url_cmd,
-                             remain_cols=['name_link', 'name', 'method', 'method_link_text', 'icon'],
+                             remain_cols=['name_link', 'name', 'name_other', 'des', 'method', 'method_link_text',
+                                          'icon', 'type_marker'],
                              replace_cols={})
         cmd_spider.down_all_wikitext(_range=kwargs.pop('_range', None),
                                      workers=kwargs.pop('workers', kWorkersNum))

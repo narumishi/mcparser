@@ -51,7 +51,7 @@ class CraftParser(BaseParser):
         check_equal('mcLink', name_link, craft.mcLink, False)
         check_equal('name', name, craft.name, False)
         list_extend(craft.nameOther, name_other.split('&'))
-        craft.icon = os.path.basename(self.src_data.loc[index, 'icon'])
+        craft.icon = os.path.basename(icon)
 
         for icon in [craft.icon, craft.skillIcon] + craft.eventIcons:
             ICONS.add(icon)
@@ -61,7 +61,7 @@ class CraftParser(BaseParser):
         check_equal('atk min', int(atk_max), craft.atkMax)
         # check_equal('skill des', des, craft.skill, False)
         # check_equal('skill des max', des_max, craft.skillMax or '', False)
-        craft.category = type_marker
+        craft.category = int(type_marker)
 
         # bond craft & valentine craft
         craft.bond = self._which_svt(code, 0)
