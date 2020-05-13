@@ -1,9 +1,6 @@
-import pickle
 from concurrent.futures import ThreadPoolExecutor
 from io import StringIO
 from urllib.request import urlopen
-
-import pandas as pd
 
 from .utils.util import *
 

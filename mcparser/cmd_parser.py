@@ -19,8 +19,15 @@ def check_equal(hint: str, a, b, stop=True):
 
 
 class CmdParser(BaseParser):
+    def __init__(self, pkl_fn: str):
+        super().__init__()
+        self.src_data: pd.DataFrame = pickle.load(open(pkl_fn, 'rb'))
+
+    def get_keys(self):
+        return self.src_data.index
+
     @catch_exception
-    def _parse_one(self, index: int) -> CmdCode:
+    def _parse_one(self, index: int) -> Tuple[int, CmdCode]:
         mc_link = self.src_data.loc[index, 'name_link']
         if threading.current_thread() != threading.main_thread():
             threading.current_thread().setName(f'CmdCode-{index}-{mc_link}')
@@ -45,4 +52,4 @@ class CmdParser(BaseParser):
             ICONS.add(icon)
         cmd_code.category = int(type_marker)
 
-        return cmd_code
+        return index, cmd_code

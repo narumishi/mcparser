@@ -5,8 +5,15 @@ from .utils.util_svt import *
 
 # noinspection PyMethodMayBeStatic
 class ServantParser(BaseParser):
+    def __init__(self, pkl_fn: str):
+        super().__init__()
+        self.src_data: pd.DataFrame = pickle.load(open(pkl_fn, 'rb'))
+
+    def get_keys(self):
+        return self.src_data.index
+
     @catch_exception
-    def _parse_one(self, index: int) -> Servant:
+    def _parse_one(self, index: int) -> Tuple[int, Servant]:
         mc_link = self.src_data.loc[index, 'name_link']
         if threading.current_thread() != threading.main_thread():
             threading.current_thread().setName(f'Servant-{index}-{mc_link}')
@@ -26,7 +33,7 @@ class ServantParser(BaseParser):
         self._profiles(index, code, servant)
         wikicode_voice = mwp.parse(self.src_data.loc[index, 'wikitext_voice'])
         self._voices(index, wikicode_voice, servant)
-        return servant
+        return index, servant
 
     def _base_info(self, index: int, code: Wikicode, servant: Servant):
         servant.info = p_base_info(parse_template(code, r'^{{基础数值'))

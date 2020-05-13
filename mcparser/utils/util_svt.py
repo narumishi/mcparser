@@ -170,6 +170,7 @@ def p_passive_skill(params: Params):
     offset = 0
     while True:
         skill = Skill()
+        skill._ignored = ['state', 'nameJp', 'cd']
         skill.icon = params.get(str(offset + 1))
         if skill.icon is None:
             break
@@ -261,7 +262,9 @@ def p_profiles(params: Params):
         profile.title = '角色详情' if i == 0 else f'个人资料{i}'
         profile.description = params.get(key, tags=kAllTags)
         profile.descriptionJp = params.get(key + '日文', tags=kAllTags)
-        profile.condition = params.get(key + '条件', tags=kAllTags)
+        condition = params.get(key + '条件', tags=kAllTags)
+        if condition and not re.match(f'羁绊达到Lv\\.{i}[后时]?开放', condition):
+            profile.condition = params.get(key + '条件', tags=kAllTags)
         if profile.descriptionJp:
             instance.append(profile)
     return instance

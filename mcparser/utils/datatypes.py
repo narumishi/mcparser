@@ -1,6 +1,8 @@
 import json
 from typing import Any, List, Dict, Type, Optional  # noqas
 
+from ..base.basic import dump_json
+
 
 class Jsonable:
     """ Base class of json serializable classes.
@@ -9,6 +11,7 @@ class Jsonable:
     """
 
     def __init__(self, **kwargs):
+        self._ignored = []
         for k, v in kwargs.items():
             if k in self.__dict__:
                 self.__dict__[k] = v
@@ -24,21 +27,28 @@ class Jsonable:
     def __repr__(self):
         return self.get_repr()
 
-    def to_json(self, hide_private=True):
-        """Recursively convert to json object rather than string.
+    def to_json(self, skip_ignored=True, return_type='object'):
+        """Recursively convert to json object or string.
 
-        :param hide_private: if True, private attributes will be ignored.
-        :return: json object(dict).
+        :param skip_ignored: if True, private attributes and keys in `_ignored` will be ignored.
+        :param return_type: "json" - a json object,
+                             "str" - a json string,
+                             "object" (default) - filtrated dict object from __dict__ object
+        :return: dict or str.
         """
-        # TODO: more efficient way to convert to json object
-        if hide_private:
+        if skip_ignored:
             data = {}
             for k, v in self.__dict__.items():
-                if not k.startswith('_'):
+                if not k.startswith('_') and k not in self._ignored:
                     data[k] = v
         else:
             data = self.__dict__
-        return json.loads(json.dumps(data, ensure_ascii=False, default=lambda o: o.to_json()))
+        if return_type == 'json':
+            return json.loads(json.dumps(data, ensure_ascii=False, default=lambda o: o.to_json(skip_ignored)))
+        elif return_type == 'str':
+            return json.dumps(data, ensure_ascii=False, default=lambda o: o.to_json(skip_ignored))
+        else:  # "object"
+            return data
 
     def from_json(self, data: Dict):
         """List[Jsonable] and Dict[Jsonable] must be done in child class's from_json"""
@@ -55,9 +65,7 @@ class Jsonable:
         self.from_json(json.load(open(fp, encoding='utf8')))
 
     def dump(self, fp, **kwargs):
-        ensure_ascii = kwargs.pop('ensure_ascii', False)
-        indent = kwargs.pop('indent', 2)
-        json.dump(self.to_json(), open(fp, 'w', encoding='utf8'), ensure_ascii=ensure_ascii, indent=indent, **kwargs)
+        dump_json(self.to_json(), fp, default=lambda o: o.to_json(), **kwargs)
 
     @staticmethod
     def convert_map(data: Dict[str, Dict], cls: Type, key_type=None):
@@ -351,31 +359,38 @@ class Item(Jsonable):
 
 
 class Enemy(Jsonable):
+    """Multiple-hp enemy"""
+
     def __init__(self, **kwargs):
-        self.name = ''
-        self.shownName = ''
-        self.className = ''
-        self.rank = 0
-        self.hp = 0
+        # list length must >=1
+        self.name: List[str] = []
+        self.shownName: List[str] = []
+        self.className: List[str] = []
+        self.rank: List[int] = []
+        self.hp: List[int] = []
         super().__init__(**kwargs)
 
     def __repr__(self):
         return self.get_repr(self.shownName)
+
+    def __bool__(self):
+        return len(self.name) > 0
 
 
 class Battle(Jsonable):
     def __init__(self, **kwargs):
         self.ap = 0
         self.placeJp = ''
-        self.placeCn = ''
+        self.place = ''
         self.enemies: List[List[Enemy]] = []
+        self.drops: Dict[str, int] = {}
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.get_repr(self.placeCn)
+        return self.get_repr(self.place)
 
     def from_json(self, data: Dict):
-        self.enemies = [[Enemy().from_json(i) for i in ii] for ii in data.pop('enemies', [])]
+        self.enemies = [[Enemy().from_json(ee) for ee in e] for e in data.pop('enemies', [])]
         super(Battle, self).from_json(data)
 
 
@@ -383,16 +398,19 @@ class Quest(Jsonable):
     def __init__(self, **kwargs):
         self.chapter = ''
         self.nameJp = ''
-        self.nameCn = ''
+        self.name = ''
         self.level = 0
         self.bondPoint = 0
         self.experience = 0
         self.qp = 0
+        self.isFree = False
+        self.hasChoice = False  # more than 1 branch of different quest configuration
         self.battles: List[Battle] = []
+        self.rewards: Dict[str, int] = {}
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.get_repr(self.nameCn)
+        return self.get_repr(self.name)
 
 
 class FileResource(Jsonable):

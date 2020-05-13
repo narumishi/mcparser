@@ -15,6 +15,8 @@ class Params(dict):
         """
         if k not in self:
             return default
+        if tags is True:
+            tags = kAllTags
         v = super(Params, self).get(k)
         if isinstance(v, str) and tags is not None:
             v = remove_tag(v, tags)

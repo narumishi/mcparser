@@ -25,16 +25,20 @@ def check_equal(hint: str, a, b, stop=True):
 
 class CraftParser(BaseParser):
     def __init__(self, pkl_fn: str, svt_pkl_fn: str = None):
+        super().__init__()
+        self.src_data: pd.DataFrame = pickle.load(open(pkl_fn, 'rb'))
         self.svt_name_id_map = {}
         if svt_pkl_fn:
             svt_pkl: pd.DataFrame = pickle.load(open(svt_pkl_fn, 'rb'))
             if svt_pkl.shape[0] > 200:
                 for index in svt_pkl.index:
                     self.svt_name_id_map[svt_pkl.loc[index, 'name_link']] = index
-        super().__init__(pkl_fn)
+
+    def get_keys(self):
+        return self.src_data.index
 
     @catch_exception
-    def _parse_one(self, index: int) -> CraftEssential:
+    def _parse_one(self, index: int) -> Tuple[int, CraftEssential]:
         mc_link = self.src_data.loc[index, 'name_link']
         if threading.current_thread() != threading.main_thread():
             threading.current_thread().setName(f'Craft-{index}-{mc_link}')
@@ -66,7 +70,7 @@ class CraftParser(BaseParser):
         # bond craft & valentine craft
         craft.bond = self._which_svt(code, 0)
         craft.valentine = self._which_svt(code, 1)
-        return craft
+        return index, craft
 
     def _which_svt(self, code: Wikicode, kind=0) -> int:
         if kind == 0:

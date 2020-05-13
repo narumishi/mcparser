@@ -1,5 +1,6 @@
 import json
 import os
+import pickle  # noqas
 import re
 import sys
 import threading
@@ -9,6 +10,7 @@ from pprint import pprint  # noqas
 from typing import Any, List, Dict, Type, Union, Iterable, Optional, Sequence, Tuple  # noqas
 
 import mwparserfromhell as mwp  # noqas
+import pandas as pd  # noqas
 import wikitextparser  # noqas
 from mwparserfromhell.nodes.extras.parameter import Parameter  # noqas
 from mwparserfromhell.nodes.tag import Tag  # noqas
@@ -49,7 +51,7 @@ def dump_json(obj, fp: str = None, **kwargs):
     indent = kwargs.pop('indent', 2)
     ensure_ascii = kwargs.pop('ensure_ascii', False)
     if fp is not None:
-        os.makedirs(os.path.dirname(fp), exist_ok=True)
+        os.makedirs(os.path.dirname(fp) or '.', exist_ok=True)
         json.dump(obj, open(fp, 'w', encoding='utf-8'), ensure_ascii=ensure_ascii, indent=indent, **kwargs)
         return None
     else:
