@@ -21,7 +21,10 @@ class Params(dict):
         if isinstance(v, str) and tags is not None:
             v = remove_tag(v, tags)
         if cast is not None:
-            v = cast(v)
+            try:
+                v = cast(v)
+            except:  # noqas
+                v = default
         return v
 
 
@@ -190,22 +193,30 @@ def find_effect_target(description: str, last=None):
 # %% common used template parse functions
 def p_one_item(params: Params):
     """For template 材料消耗&道具"""
-    return params.get('1'), params.get('2', default=1, cast=int)
+    if 'name' in params:  # {{素材
+        return params.get('name'), params.get('count', default=1, cast=int)
+    else:  # {{道具, {{材料消耗
+        # 种火, num_text=职阶名
+        num_text = params.get('2', '1')
+        num = int(num_text) if num_text.isdigit() else 1
+        return params.get('1'), num
 
 
 def p_items(code: Wikitext):
     # qp counts may be no correct
     items: Dict[str, int] = {}
-    fragments = re.findall(r'(?={{)(.+?)(?<=}})([^{}]*?)(?={{|$)', str(code))
-    for item_template, groups in fragments:
-        item, num = p_one_item(parse_template(item_template, match_pattern=r'^{{(道具|材料消耗)'))
+    for item_text, num2_text in re.findall(r'(?={{)(.+?)(?<=}})([^{}]*?)(?={{|$)', str(code)):
+        item, num1 = p_one_item(parse_template(item_text, match_pattern=r'^{{(道具|材料消耗|素材)'))
         if item is None:
             continue
-        groups = re.sub(r',\+', '', groups)
-        group_find = re.findall(r'\d+', groups)
-        if len(group_find) == 0:
-            group_num = 1
+        num2_text = re.sub(r"([,+*x×]|''')", '', num2_text)
+        if item == 'QP':
+            num2_re = re.findall(r'\d+', num2_text)
         else:
-            group_num = int(group_find[0])
-        items[item] = num * group_num
+            num2_re = re.findall(r'^\s*(\d+)', num2_text)
+        if len(num2_re) == 0:
+            num2 = 1
+        else:
+            num2 = int(num2_re[0])
+        items[item] = num1 * num2
     return items

@@ -6,6 +6,7 @@ import sys
 import threading
 import time
 import traceback
+from inspect import signature
 from pprint import pprint  # noqas
 from typing import Any, List, Dict, Type, Union, Iterable, Optional, Sequence, Tuple  # noqas
 
@@ -45,6 +46,36 @@ def list_extend(_list: List, elements: Iterable, ignore=(None, '')):
     for e in elements:
         if e not in ignore:
             _list.append(e)
+
+
+def add_dict(x: Dict[Any, Union[int, float]], *args, in_place=True):
+    result: Dict[Any, Union[int, float]] = x if in_place else {}
+    for y in args:
+        for k, v1 in y.items():
+            v0 = x.get(k, 0)
+            assert isinstance(v0, (int, float)) and isinstance(v1, (int, float)), \
+                f'dict value must be number: v0={type(v0)} {v0}, v1={type(v1)} {v1}'
+            result[k] = v0 + v1
+    return result
+
+
+def sort_dict(obj: Dict, key=None, reverse=False):
+    """
+    Return a new sorted dict using sorting function `key(k, v)`.
+    """
+    if key is None:
+        sorted_keys = sorted(obj.keys(), reverse=reverse)
+    else:
+        sig = signature(key)
+        param_num = len(sig.parameters)
+        assert param_num in (1, 2)
+        if param_num == 1:
+            sorted_keys = sorted(obj.keys(), key=key, reverse=reverse)
+        elif param_num == 2:
+            sorted_keys = sorted(obj.keys(), key=lambda k: key(k, obj[k]), reverse=reverse)
+        else:
+            raise ValueError()
+    return dict([(k, obj[k]) for k in sorted_keys])
 
 
 def dump_json(obj, fp: str = None, **kwargs):

@@ -1,7 +1,7 @@
 import json
 from typing import Any, List, Dict, Type, Optional  # noqas
 
-from ..base.basic import dump_json
+from ..base.basic import dump_json, add_dict
 
 
 class Jsonable:
@@ -412,6 +412,12 @@ class Quest(Jsonable):
     def __repr__(self):
         return self.get_repr(self.name)
 
+    def get_all_drop_items(self):
+        result: Dict[str, int] = {}
+        for battle in self.battles:
+            add_dict(result, battle.drops)
+        return result
+
 
 class FileResource(Jsonable):
     def __init__(self, **kwargs):
@@ -438,38 +444,48 @@ class Events(Jsonable):
         super(Events, self).from_json(data)
 
 
-class LimitEvent(Jsonable):
+class EventBase(Jsonable):
     def __init__(self, **kwargs):
         self.name = ''
-        self.link = ''
+        self.nameJp = ''
+        self.mcLink = ''
         self.startTimeJp = ''
         self.endTimeJp = ''
         self.startTimeCn = ''
         self.endTimeCn = ''
+        self.bannerUrl = ''
         self.grail = 0
         self.crystal = 0
         self.grail2crystal = 0
-        self.qp = 0
-        self.items: Dict[str, int] = {}
-        self.category = ''
-        self.extra: Dict[str, str] = {}
-        self.lottery: Dict[str, int] = {}
+        # self.rarePrism = 0
+        # self.fufu = 0
         super().__init__(**kwargs)
+
+
+class LimitEvent(EventBase):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.items: Dict[str, int] = {}
+        # item details
+        self.itemShop: Dict[str, int] = {}
+        self.itemTask: Dict[str, int] = {}
+        self.itemPoint: Dict[str, int] = {}
+        self.itemDropReward: Dict[str, int] = {}
+
+        self.extra: Dict[str, str] = {}  # item-comment
+        self.lottery: Dict[str, int] = {}  # item-num
 
     def __repr__(self):
         return self.get_repr(self.name)
 
 
-class MainRecord(Jsonable):
+class MainRecord(EventBase):
     def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.chapter = ''
         self.title = ''
-        self.fullname = ''
-        self.startTimeJp = ''
-        self.startTimeCn = ''
         self.drops: Dict[str, int] = {}
         self.rewards: Dict[str, int] = {}
-        super().__init__(**kwargs)
 
     def __repr__(self):
         return self.get_repr(self.chapter, self.title)

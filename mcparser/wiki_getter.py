@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from io import StringIO
 from urllib.request import urlopen
+from urllib.parse import urlencode
 
 from .utils.util import *
 
@@ -154,3 +155,61 @@ class WikiGetter:
         cmd_spider.down_all_wikitext(_range=kwargs.pop('_range', None),
                                      workers=kwargs.pop('workers', kWorkersNum))
         cmd_spider.dump()
+
+
+class EventWikiGetter:
+    def __init__(self, fp: str, reload=True):
+        self.fp = fp
+        if reload is False and G.get(fp) is not None:
+            data = G[fp]
+        elif not os.path.exists(fp):
+            data = {}
+        else:
+            data = load_json(fp)
+            logger.info(f'loaded json data: {fp}')
+        G[fp] = data
+        self.data: Dict[str, Any] = data
+
+    def dump(self, fp=None):
+        fp = fp or self.fp
+        dump_json(self.data, fp)
+        logger.info(f'dump event json wikitext data at "{fp}"')
+
+    def ask_event_list(self, event_types: List[str] = None, workers=kWorkersNum):
+        executor = ThreadPoolExecutor(max_workers=workers)
+        if event_types is None:
+            event_types = ['MainStory', 'Event']
+        for _event_type in event_types:
+            param = {
+                "action": "ask",
+                "format": "json",
+                "query": f"[[分类:有活动信息的页面]][[EventType::{_event_type}]]|?EventNameJP|sort=EventStartJP|limit=500",
+                "api_version": "2",
+                "utf8": 1
+            }
+            response = urlopen(f'https://fgo.wiki/api.php?{urlencode(param)}')
+            event_query_list: List[Dict] = list(json.load(response)['query']['results'].values())
+            events = self.data.setdefault(_event_type, {})
+            finish_num, all_num = 0, len(event_query_list)
+            for result in executor.map(self._down_wikitext, event_query_list):
+                fullname = event_query_list[finish_num]['fulltext']
+                finish_num += 1
+                if result:
+                    events[fullname] = result
+                    logger.debug(f'======= {_event_type}: No.{finish_num}-"{fullname}" success,'
+                                 f' {finish_num}/{all_num} ========')
+                else:
+                    logger.warning(f'======= {_event_type}: No.{finish_num}-"{fullname}" failed,'
+                                   f' {finish_num}/{all_num} ========')
+            logger.info(f'{_event_type}: All {all_num} wikitext downloaded.')
+
+    @staticmethod
+    @catch_exception
+    def _down_wikitext(event_info: Dict[str, Any]):
+        name = event_info['fulltext']
+        return {
+            'name': name,
+            'event_page': get_site_page(name),
+            'quest_page': get_site_page(name + '/关卡配置'),
+            'subpages': {}
+        }

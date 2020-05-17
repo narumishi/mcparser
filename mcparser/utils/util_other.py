@@ -171,3 +171,14 @@ def p_enemy(params: Params, instance: Enemy = None):
         instance.hp.append(params.get(str(offset + 5), 0, int))
         offset += 6
     return instance
+
+
+def p_quest_reward_drop(code: Wikicode, skip_free_drop=True):
+    drops, rewards = {}, {}  # type:Dict[str,int]
+    for template in code.filter_templates(matches='^{{关卡配置'):
+        quest = p_quest(parse_template(template))
+        add_dict(rewards, quest.rewards)
+        if not quest.isFree or not skip_free_drop:  # hard quest - like free
+            for battle in quest.battles:
+                add_dict(drops, battle.drops)
+    return rewards, drops
