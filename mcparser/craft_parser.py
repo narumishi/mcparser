@@ -1,7 +1,8 @@
 from .base_parser import *
+from .svt_parser import ServantParser
 from .utils.datatypes import CraftEssential
 from .utils.icons import ICONS
-from .utils.util_other import p_craft_essential
+from .utils.templates import t_craft_essential
 
 
 def check_equal(hint: str, a, b, stop=True):
@@ -24,15 +25,16 @@ def check_equal(hint: str, a, b, stop=True):
 
 
 class CraftParser(BaseParser):
-    def __init__(self, pkl_fn: str, svt_pkl_fn: str = None):
+    def __init__(self, pkl_fn: str, svt_parser: ServantParser = None):
         super().__init__()
         self.src_data: pd.DataFrame = pickle.load(open(pkl_fn, 'rb'))
+        self.data: Dict[int, CraftEssential] = {}
+
+        self._svt_parser = svt_parser
         self.svt_name_id_map = {}
-        if svt_pkl_fn:
-            svt_pkl: pd.DataFrame = pickle.load(open(svt_pkl_fn, 'rb'))
-            if svt_pkl.shape[0] > 200:
-                for index in svt_pkl.index:
-                    self.svt_name_id_map[svt_pkl.loc[index, 'name_link']] = index
+        if svt_parser:
+            for index, svt in svt_parser.data.items():
+                self.svt_name_id_map[svt.mcLink] = index
 
     def get_keys(self):
         return self.src_data.index
@@ -44,7 +46,7 @@ class CraftParser(BaseParser):
             threading.current_thread().setName(f'Craft-{index}-{mc_link}')
 
         code = mwp.parse(self.src_data.loc[index, 'wikitext'])
-        craft = p_craft_essential(parse_template(code, r'^{{概念礼装'))
+        craft = t_craft_essential(parse_template(code, r'^{{概念礼装'))
         check_equal('index', index, craft.no)
 
         name_link, name, name_other, icon, hp1, hp_max, atk1, atk_max, des, des_max, type_marker = \
@@ -69,7 +71,13 @@ class CraftParser(BaseParser):
 
         # bond craft & valentine craft
         craft.bond = self._which_svt(code, 0)
+        if craft.bond > 0 and self._svt_parser:
+            svt = self._svt_parser.data[craft.bond]
+            svt.bondCraft = index
         craft.valentine = self._which_svt(code, 1)
+        if craft.valentine > 0 and self._svt_parser:
+            svt = self._svt_parser.data[craft.valentine]
+            svt.valentineCraft.append(index)
         return index, craft
 
     def _which_svt(self, code: Wikicode, kind=0) -> int:

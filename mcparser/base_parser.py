@@ -7,8 +7,7 @@ from .utils.util import *
 # noinspection PyMethodMayBeStatic
 class BaseParser(metaclass=abc.ABCMeta):
     def __init__(self):
-        # self.src_data: pd.DataFrame = pickle.load(open(pkl_fn, 'rb'))
-        self.data: Dict = {}
+        self.data: Dict = {}  # override to specify type
 
     @abc.abstractmethod
     def get_keys(self):
@@ -29,7 +28,7 @@ class BaseParser(metaclass=abc.ABCMeta):
             if result:
                 key, value = result
                 self.data[key] = value
-                logger.debug(f'======= "{key}" finished, {finish_num}/{all_num} ========')
+                logger.debug(f'======= {finish_num}/{all_num}: "{key}" finished ========')
             else:
                 # error in thread or invalid return
                 logger.debug(f'======= There is a thread went wrong, {finish_num}/{all_num} ========')

@@ -1,5 +1,5 @@
 from .base_parser import *
-from .utils.util_other import *  # noqas
+from .utils.templates import *
 
 
 class EventParser:
@@ -81,8 +81,8 @@ class EventParser:
         event.name = src_data['name']
         self._parse_event_info(params_event_info, event)
         event.itemShop = p_event_shop(home_wikitext)
-        event.itemTask = p_event_task(parse_template(home_wikitext, '^{{活动任务'))
-        event.itemPoint = p_event_point(parse_template(home_wikitext, '^{{活动点数'))
+        event.itemTask = t_event_task(parse_template(home_wikitext, '^{{活动任务'))
+        event.itemPoint = t_event_point(parse_template(home_wikitext, '^{{活动点数'))
         # 无限池：
         lottery_templates = home_wikitext.filter_templates(matches='^{{奖品奖池')
         if lottery_templates:
@@ -90,10 +90,10 @@ class EventParser:
                 lottery_num = len(lottery_templates)
                 assert lottery_num % 2 == 0
                 add_dict(event.lottery,
-                         p_event_pond(parse_template(lottery_templates[lottery_num // 2 - 1])),
-                         p_event_pond(parse_template(lottery_templates[-1])))
+                         t_event_lottery(parse_template(lottery_templates[lottery_num // 2 - 1])),
+                         t_event_lottery(parse_template(lottery_templates[-1])))
             else:
-                event.lottery = p_event_pond(parse_template(lottery_templates[-1]))
+                event.lottery = t_event_lottery(parse_template(lottery_templates[-1]))
 
         # quests drop & rewards
         # add 高难 -> repeatable ? rewards : rewards+drops
@@ -167,97 +167,3 @@ class EventParser:
     def dump(self, fp: str):
         dump_json(self.data.to_json(), fp, default=lambda o: o.to_json())
         logger.info(f'{self.__class__.__name__}: dump parsed data at "{fp}"')
-
-
-# %% templates
-def p_event_shop_list(params: Params):
-    """{{#invoke:EventShopList}}"""
-    results: Dict[str, int] = {}
-    if not params:
-        return results
-    data_str = params.get('data').strip()
-    item_list = data_str.split(sep='\n')
-    for row in item_list:
-        # 0:check，1:name，2:num, 3:price，4:bg_color
-        datum_table = row.split(sep=';;')
-        name, num = datum_table[1], datum_table[2]
-        item, num1 = p_one_item(parse_template(name, '^{{道具'))
-        if item and num.isdigit():
-            results[item] = int(num) * num1
-    return results
-
-
-def p_event_shop(code: Wikicode):
-    result: Dict[str, int] = {}
-    for template in code.filter_templates(matches='^{{#invoke:EventShopList'):
-        params = parse_template(template)
-        add_dict(result, p_event_shop_list(params))
-    return result
-
-
-def p_event_point(params: Params):
-    """{{活动点数}}"""
-    result: Dict[str, int] = {}
-    if not params:
-        return result
-    names: Dict[int, str] = {}
-    for key, value in params.items():
-        if key.startswith('name'):
-            names[int(key[4:])] = value.strip()
-    assert len(names) == max(names.keys())
-    no = 1
-    while True:
-        if str(no) not in params:
-            break
-        name_key = int(params.get(f'{no}tp'))
-        name = names[name_key]
-        num_str = params.get(f'{no}num', '1').strip()
-        if num_str.isdigit():
-            num = int(num_str)
-            result[name] = result.get(name, 0) + num
-        no += 1
-    return result
-
-
-def p_event_task(params: Params):
-    """{{活动任务}}"""
-    result: Dict[str, int] = {}
-    if not params:
-        return result
-    for i in range(1, 101):
-        reward = params.get(f'jl{i}')
-        add_dict(result, p_items(reward))
-    return result
-
-
-def p_event_pond(params: Params):
-    """{{奖品奖池}}"""
-    # 尼禄祭再临 ～2017 Autumn～
-    # BATTLE IN NEWYORK 2018
-    # 圣诞节2018 Holy·Samba·Night ～降雪遗迹与少女骑士～
-    # 复刻：第二代是Alter亲 ～2016圣诞节～ 轻量版
-    result: Dict[str, int] = {}
-    if not params:
-        return result
-    for i in range(1, 13):
-        item = params.get(f'道具{i}')
-        if item:
-            result[item] = params.get(f'道具{i}次数', cast=int)
-    for gem in ('秘石', '魔石', '辉石', '金像', '银像'):
-        num = params.get(gem + '次数', 0, int)
-        if num > 0:
-            for i in range(1, 8):
-                class_name = params.get(f'{gem}{i}')
-                if class_name:
-                    if '石' in gem:
-                        item = f'{class_name}之{gem}'
-                    else:
-                        item = f'{class_name}阶{gem}'
-                    result[item] = num
-    qp_num = 0
-    for i in range(1, 7):
-        qp_per = params.get(f'QP{i}', 0, int)
-        if qp_per:
-            qp_num += qp_per * params.get(f'QP{i}次数', cast=int)
-    result['QP'] = qp_num
-    return result

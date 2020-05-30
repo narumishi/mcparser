@@ -1,7 +1,7 @@
 from .base_parser import *
 from .utils.datatypes import CmdCode
 from .utils.icons import ICONS
-from .utils.util_other import p_cmd_code
+from .utils.templates import t_cmd_code
 
 
 def check_equal(hint: str, a, b, stop=True):
@@ -22,6 +22,7 @@ class CmdParser(BaseParser):
     def __init__(self, pkl_fn: str):
         super().__init__()
         self.src_data: pd.DataFrame = pickle.load(open(pkl_fn, 'rb'))
+        self.data: Dict[int, CmdCode] = {}
 
     def get_keys(self):
         return self.src_data.index
@@ -33,7 +34,7 @@ class CmdParser(BaseParser):
             threading.current_thread().setName(f'CmdCode-{index}-{mc_link}')
 
         code = mwp.parse(self.src_data.loc[index, 'wikitext'])
-        cmd_code = p_cmd_code(parse_template(code, r'^{{指令纹章'))
+        cmd_code = t_cmd_code(parse_template(code, r'^{{指令纹章'))
         check_equal('index', index, cmd_code.no)
 
         name_link, name, name_other, des, method, method_text, icon, type_marker = \

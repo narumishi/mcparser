@@ -19,10 +19,13 @@ class _Icons:
     def __init__(self, fp='output/temp/icons.json'):
         self.fp = fp
         self.data: Dict[str, FileResource] = {}
-        self.load(fp)
+        self._initiated = False
+        if fp:
+            self.load(fp)
 
     def add(self, filename: str, key: str = None, save: bool = True):
-        if self.data == {}:
+        if not self._initiated:
+            logger.warning('load icons json data before using it')
             self.load()
         fn_split = re.split(r'[(（]有框[)）]', filename)
         if len(fn_split) > 1:
@@ -89,7 +92,7 @@ class _Icons:
             filename = f'{s}未强化.png'
             img.save(os.path.join(icon_dir, filename), format="png")
             self.data[filename] = FileResource(name=filename, url=None, save=False)
-        print(f'downloaded icons at {icon_dir}')
+        logger.info(f'downloaded icons at {icon_dir}')
 
     def dump(self, fp=None):
         """Call `download_icon()` before dump icons json"""
@@ -103,6 +106,7 @@ class _Icons:
         if os.path.exists(fp):
             data = json.load(open(fp, encoding='utf8'))
             self.data = Jsonable.convert_map(data, FileResource)
+        self._initiated = True
 
 
 ICONS = _Icons()

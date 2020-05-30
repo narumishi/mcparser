@@ -1,6 +1,6 @@
 from .base_parser import *
 from .utils.icons import ICONS
-from .utils.util_svt import *
+from .utils.templates import *
 
 
 # noinspection PyMethodMayBeStatic
@@ -8,6 +8,7 @@ class ServantParser(BaseParser):
     def __init__(self, pkl_fn: str):
         super().__init__()
         self.src_data: pd.DataFrame = pickle.load(open(pkl_fn, 'rb'))
+        self.data: Dict[int, Servant] = {}
 
     def get_keys(self):
         return self.src_data.index
@@ -36,7 +37,7 @@ class ServantParser(BaseParser):
         return index, servant
 
     def _base_info(self, index: int, code: Wikicode, servant: Servant):
-        servant.info = p_base_info(parse_template(code, r'^{{基础数值'))
+        servant.info = t_base_info(parse_template(code, r'^{{基础数值'))
         nicknames = [s for s in self.src_data.loc[index, 'name_other'].split('&') if s]
         servant.info.nicknames.extend(nicknames)
         servant.info.nicknames = list(set(servant.info.nicknames))
@@ -48,7 +49,7 @@ class ServantParser(BaseParser):
             return
         for state, td_text in split_tabber(td_sections[0]):
             td_params = parse_template(remove_tag(td_text), r'^{{宝具')
-            td = p_treasure_device(td_params)
+            td = t_treasure_device(td_params)
             td.state = state
             servant.treasureDevice.append(td)
         if index == 1:  # 玛修: [第1部真名解放前, 第1部真名解放后, 第2部灵衣]
@@ -88,7 +89,7 @@ class ServantParser(BaseParser):
             one_skill = []  # including 强化前/后
             for state, skill_code in split_tabber(s):
                 params = parse_template(remove_tag(skill_code), r'^{{持有技能')
-                skill = p_active_skill(params)
+                skill = t_active_skill(params)
                 skill.state = state
                 one_skill.append(skill)
                 ICONS.add(skill.icon)
@@ -99,7 +100,7 @@ class ServantParser(BaseParser):
         if len(sections) == 0:
             return
         params = parse_template(remove_tag(str(sections[0])), r'^{{职阶技能')
-        servant.passiveSkills = p_passive_skill(params)
+        servant.passiveSkills = t_passive_skill(params)
         for skill in servant.passiveSkills:
             ICONS.add(skill.icon)
         if len(servant.passiveSkills) == 0:
@@ -114,7 +115,7 @@ class ServantParser(BaseParser):
         sections = code.get_sections(matches='灵基再临')
         if sections:
             section: Wikicode = sections[0]
-            servant.itemCost.ascension = p_ascension_cost(parse_template(section, r'^{{灵基再临素材'))
+            servant.itemCost.ascension = t_ascension_cost(parse_template(section, r'^{{灵基再临素材'))
         else:
             logger.warning(f'No.{index}-{servant.mcLink} has no ascension items', end='')
 
@@ -122,7 +123,7 @@ class ServantParser(BaseParser):
         sections = code.get_sections(matches='技能强化')
         if sections:
             section: Wikicode = sections[0]
-            servant.itemCost.skill = p_skill_cost(parse_template(section, r'^{{技能升级素材'))
+            servant.itemCost.skill = t_skill_cost(parse_template(section, r'^{{技能升级素材'))
         else:
             logger.warning(f'No.{index}-{servant.mcLink} has no skill up items', end='')
 
@@ -130,7 +131,7 @@ class ServantParser(BaseParser):
         sections = code.get_sections(matches='灵衣开放')
         if sections:
             section: Wikicode = sections[0]
-            dress_result = p_dress_cost(parse_template(section, r'^{{灵衣开放素材'))
+            dress_result = t_dress_cost(parse_template(section, r'^{{灵衣开放素材'))
             servant.itemCost.dress, servant.itemCost.dressName, servant.itemCost.dressNameJp = dress_result
         return
 
@@ -145,14 +146,14 @@ class ServantParser(BaseParser):
     def _profiles(self, index: int, code: Wikicode, servant: Servant):  # noqas
         section = code.get_sections(matches='资料')[0]
         params_profile = parse_template(remove_tag(str(section)), r'^{{个人资料')
-        servant.profiles = p_profiles(params_profile)
+        servant.profiles = t_profiles(params_profile)
         params_fool = parse_template(code, r'^{{愚人节资料')
-        servant.profiles.extend(p_fool_profiles(params_fool))
+        servant.profiles.extend(t_fool_profiles(params_fool))
 
     def _voices(self, index: int, code: Wikicode, servant: Servant):  # noqas
         for template in code.filter_templates(matches=r'^{{#invoke:VoiceTable'):
             params = parse_template(remove_tag(str(template)), r'^{{#invoke:VoiceTable')
-            table = p_voice_table(params)
+            table = t_voice_table(params)
             for record in table.table:
                 if record.file:
                     ICONS.add(record.file, save=False)

@@ -18,7 +18,7 @@ from mwparserfromhell.nodes.tag import Tag  # noqas
 from mwparserfromhell.nodes.template import Template  # noqas
 from mwparserfromhell.wikicode import Wikicode  # noqas
 
-from mcparser.base.log import *
+from .log import *
 
 Wikitext = Union[str, Wikicode, Template]
 G = {}  # global vars

@@ -1,5 +1,6 @@
-from ..base.basic import *
-from ..base.config import *
+"""Wikitext basic utils"""
+from .basic import *
+from .config import *
 
 kAllTags = ('ref', 'br', 'comment', 'del', 'sup', 'nowiki', 'include', 'heimu', 'texing', 'link', 'ruby', 'bold')
 
@@ -28,6 +29,22 @@ class Params(dict):
         return v
 
 
+def parse_template(template: Wikitext, match_pattern: str = None) -> Params:
+    if not isinstance(template, Template):
+        templates = mwp.parse(template).filter_templates(matches=match_pattern)
+        if len(templates) == 0:
+            return Params()
+        tmpl: Template = templates[0]
+    else:
+        tmpl = template
+    params = Params()
+    for p in tmpl.params:  # type:Parameter
+        value = trim(p.value)
+        if value not in ('-', '—', ''):
+            params[trim(p.name)] = value
+    return params
+
+
 # %% site related
 def get_site_page(name, isfile=False, n=10):
     retry_no = 0
@@ -45,7 +62,6 @@ def get_site_page(name, isfile=False, n=10):
 
 
 # %% common used wikitext edit functions
-
 def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
     string = string.strip()
     code = mwp.parse(string)
@@ -126,22 +142,6 @@ def redirect_page(code, default=None):
         return default
 
 
-def parse_template(template: Wikitext, match_pattern: str = None) -> Params:
-    if not isinstance(template, Template):
-        templates = mwp.parse(template).filter_templates(matches=match_pattern)
-        if len(templates) == 0:
-            return Params()
-        tmpl: Template = templates[0]
-    else:
-        tmpl = template
-    params = Params()
-    for p in tmpl.params:  # type:Parameter
-        value = trim(p.value)
-        if value not in ('-', '—', ''):
-            params[trim(p.name)] = value
-    return params
-
-
 def split_tabber(code: Wikitext, default: str = '') -> List[Tuple[str, str]]:
     if isinstance(code, str):
         code: Wikicode = mwp.parse(code)
@@ -165,9 +165,11 @@ def split_file_link(code: str):
         return None
 
 
-def find_effect_target(description: str, last=None):
+# %%
+def _find_effect_target(description: str, last=None):
     """
     https://fgo.wiki/w/Module:SkillString
+    not used yet
     """
     if '敌方单体' in description:
         target = '敌方单体'
@@ -188,35 +190,3 @@ def find_effect_target(description: str, last=None):
     else:
         target = last
     return target
-
-
-# %% common used template parse functions
-def p_one_item(params: Params):
-    """For template 材料消耗&道具"""
-    if 'name' in params:  # {{素材
-        return params.get('name'), params.get('count', default=1, cast=int)
-    else:  # {{道具, {{材料消耗
-        # 种火, num_text=职阶名
-        num_text = params.get('2', '1')
-        num = int(num_text) if num_text.isdigit() else 1
-        return params.get('1'), num
-
-
-def p_items(code: Wikitext):
-    # qp counts may be no correct
-    items: Dict[str, int] = {}
-    for item_text, num2_text in re.findall(r'(?={{)(.+?)(?<=}})([^{}]*?)(?={{|$)', str(code)):
-        item, num1 = p_one_item(parse_template(item_text, match_pattern=r'^{{(道具|材料消耗|素材)'))
-        if item is None:
-            continue
-        num2_text = re.sub(r"([,+*x×]|''')", '', num2_text)
-        if item == 'QP':
-            num2_re = re.findall(r'\d+', num2_text)
-        else:
-            num2_re = re.findall(r'^\s*(\d+)', num2_text)
-        if len(num2_re) == 0:
-            num2 = 1
-        else:
-            num2 = int(num2_re[0])
-        items[item] = num1 * num2
-    return items

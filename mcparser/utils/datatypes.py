@@ -1,7 +1,7 @@
 import json
-from typing import Any, List, Dict, Type, Optional  # noqas
+from typing import List, Dict, Type, Optional
 
-from ..base.basic import dump_json, add_dict
+from .basic import dump_json, add_dict
 
 
 class Jsonable:
