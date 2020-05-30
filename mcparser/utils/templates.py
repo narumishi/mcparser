@@ -238,7 +238,7 @@ def t_passive_skill(params: Params):
     offset = 0
     while True:
         skill = Skill()
-        skill._ignored = ['state', 'nameJp', 'cd']
+        skill.set_ignored(['state', 'nameJp', 'cd'])
         skill.icon = params.get(str(offset + 1))
         if skill.icon is None:
             break

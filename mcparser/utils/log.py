@@ -13,7 +13,7 @@ LOG_FORMATTER = logging.Formatter(
 def get_logger(name='log', level=logging.INFO, save_path='logs/'):
     """
     :param name: logger name in logging's loggerDict
-    :param level: if level>DEBUG and save_path, logs will be saved to two files, one only for >=INFO, one for all.
+    :param level: logging level for file handler, stream handler's logging level is always DEBUG
     :param save_path: folder path to save log. If set to None, logs will not be saved.
     :return:
     """

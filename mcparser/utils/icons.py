@@ -24,6 +24,12 @@ class _Icons:
             self.load(fp)
 
     def add(self, filename: str, key: str = None, save: bool = True):
+        """
+        :param filename: full name with suffix, if no suffix, will try filename.jpg and filename.png
+        :param key: override default key(filename) for FileResource
+        :param save: whether to download icon in self.download_icons()
+        :return: dict key
+        """
         if not self._initiated:
             logger.warning('load icons json data before using it')
             self.load()
@@ -31,18 +37,23 @@ class _Icons:
         if len(fn_split) > 1:
             print(f'add a 无框 version of {"".join(fn_split)}')
             self.add(''.join(fn_split))
-        if key is None:
-            key = filename
-        if key not in self.data:
-            for fn in (filename, filename + '.png', filename + '.jpg'):
-                info = config.site.images[filename].imageinfo
-                if info != {}:
-                    self.data[key] = FileResource(name=key, filename=fn, url=info['url'], save=save)
-                    return key
-            print(f'Adding icon: "{filename}" not exist!')
-            return None
-        else:
+        if key and key in self.data:
+            icon = self.data[key]
+            if not self.data[key].filename.startswith(filename):
+                logger.warning(f'unexpected icon info: key={key}, filename={filename};\n'
+                               f'Which already exist : name={icon.name},filename={icon.filename}')
             return key
+        if filename in self.data:
+            return filename
+        for fn in (filename, filename + '.png', filename + '.jpg'):
+            info = get_site_page(fn, True).imageinfo
+            if info != {}:
+                key = key or fn
+                self.data[key] = FileResource(name=key, filename=fn, url=info['url'], save=save)
+                print(f'add icon: {key}')
+                return key
+        print(f'Adding icon: "{filename}" not exist!')
+        return None
 
     def add_common_icons(self):
         jpg_fn = [fn + '.jpg' for fn in ('QP', '圣杯', '传承结晶')]

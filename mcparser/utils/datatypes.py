@@ -18,14 +18,8 @@ class Jsonable:
             else:
                 print(f'"{k}" not in {self.__class__.__name__}')
 
-    def get_repr(self, *args):
-        if len(args) == 0:
-            return f'{self.__class__.__name__}'
-        else:
-            return f'{self.__class__.__name__}({str(args).strip(",()")})'
-
-    def __repr__(self):
-        return self.get_repr()
+    def set_ignored(self, value: List[str]):
+        self._ignored = value
 
     def to_json(self, skip_ignored=True, return_type='object'):
         """Recursively convert to json object or string.
@@ -83,6 +77,15 @@ class Jsonable:
         for attr, cls in cls_map.items():
             self.__dict__[attr] = Jsonable.convert_list(data.pop(attr, []), cls)
 
+    def _get_repr(self, *args):
+        if len(args) == 0:
+            return f'{self.__class__.__name__}'
+        else:
+            return f'{self.__class__.__name__}({str(args).strip(",()")})'
+
+    def __repr__(self):
+        return self._get_repr()
+
 
 class GameData(Jsonable):
     def __init__(self, **kwargs):
@@ -99,7 +102,7 @@ class GameData(Jsonable):
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.get_repr(self.version)
+        return self._get_repr(self.version)
 
     def from_json(self, data: Dict):
         self.attributes_from_map(data, {'servants': Servant, 'crafts': CraftEssential, 'cmdCodes': CmdCode}, int)
@@ -125,7 +128,7 @@ class Servant(Jsonable):
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.get_repr(self.no, self.mcLink)
+        return self._get_repr(self.no, self.mcLink)
 
     def from_json(self, data: Dict):
         self.attributes_from_list(data, {'treasureDevice': TreasureDevice, 'passiveSkills': Skill,
@@ -198,7 +201,7 @@ class TreasureDevice(Jsonable):
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.get_repr(self.state, self.name)
+        return self._get_repr(self.state, self.name)
 
     def from_json(self, data: Dict):
         self.attributes_from_list(data, {'effects': Effect})
@@ -220,7 +223,7 @@ class Skill(Jsonable):
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.get_repr(self.name)
+        return self._get_repr(self.name)
 
     def from_json(self, data: Dict):
         self.attributes_from_list(data, {'effects': Effect})
@@ -270,7 +273,7 @@ class VoiceTable(Jsonable):
         super(VoiceTable, self).from_json(data)
 
     def __repr__(self):
-        return self.get_repr(self.section)
+        return self._get_repr(self.section)
 
 
 class VoiceRecord(Jsonable):
@@ -283,7 +286,7 @@ class VoiceRecord(Jsonable):
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.get_repr(self.title)
+        return self._get_repr(self.title)
 
 
 class CraftEssential(Jsonable):
@@ -317,7 +320,7 @@ class CraftEssential(Jsonable):
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.get_repr(self.no, self.mcLink)
+        return self._get_repr(self.no, self.mcLink)
 
 
 class CmdCode(Jsonable):
@@ -342,20 +345,20 @@ class CmdCode(Jsonable):
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.get_repr(self.no, self.name)
+        return self._get_repr(self.no, self.name)
 
 
 class Item(Jsonable):
     def __init__(self, **kwargs):
-        self.id = -1
+        self.id = -1  # category-rarity-两位编号
         self.name = ''
-        self.rarity = 0
-        self.category = 0
-        self.num = 0
+        self.category = 0  # 1-普通素材(包括圣杯结晶),2-技能石,3-职阶棋子，4-特殊
+        self.rarity = 0  # 1~3-铜银金,4-稀有(圣杯结晶等)
+        # self.num = 0
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.get_repr(self.name)
+        return self._get_repr(self.name)
 
 
 class Enemy(Jsonable):
@@ -371,7 +374,7 @@ class Enemy(Jsonable):
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.get_repr(self.shownName)
+        return self._get_repr(self.shownName)
 
     def __bool__(self):
         return len(self.name) > 0
@@ -387,7 +390,7 @@ class Battle(Jsonable):
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.get_repr(self.place)
+        return self._get_repr(self.place)
 
     def from_json(self, data: Dict):
         self.enemies = [[Enemy().from_json(ee) for ee in e] for e in data.pop('enemies', [])]
@@ -410,7 +413,7 @@ class Quest(Jsonable):
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.get_repr(self.name)
+        return self._get_repr(self.name)
 
     def get_all_drop_items(self):
         result: Dict[str, int] = {}
@@ -422,13 +425,13 @@ class Quest(Jsonable):
 class FileResource(Jsonable):
     def __init__(self, **kwargs):
         self.name = ''
-        self.filename = None  # if name != filename, implement it
+        self.filename = ''
         self.url = ''
         self.save: bool = True
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.get_repr(self.name)
+        return self._get_repr(self.name)
 
 
 class Events(Jsonable):
@@ -466,17 +469,17 @@ class LimitEvent(EventBase):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.items: Dict[str, int] = {}
-        # item details
+        # item details, skip save to json if not debug
         self.itemShop: Dict[str, int] = {}
         self.itemTask: Dict[str, int] = {}
         self.itemPoint: Dict[str, int] = {}
-        self.itemDropReward: Dict[str, int] = {}
+        self.itemRewardDrop: Dict[str, int] = {}
 
-        self.extra: Dict[str, str] = {}  # item-comment
         self.lottery: Dict[str, int] = {}  # item-num
+        self.extra: Dict[str, str] = {}  # item-comment
 
     def __repr__(self):
-        return self.get_repr(self.name)
+        return self._get_repr(self.name)
 
 
 class MainRecord(EventBase):
@@ -488,7 +491,7 @@ class MainRecord(EventBase):
         self.rewards: Dict[str, int] = {}
 
     def __repr__(self):
-        return self.get_repr(self.chapter, self.title)
+        return self._get_repr(self.chapter, self.title)
 
 
 class ExchangeTicket(Jsonable):
@@ -500,7 +503,7 @@ class ExchangeTicket(Jsonable):
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self.get_repr(self.monthCn, self.monthJp)
+        return self._get_repr(self.monthCn, self.monthJp)
 
 
 class GLPKData(Jsonable):

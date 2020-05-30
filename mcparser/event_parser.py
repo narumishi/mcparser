@@ -1,16 +1,18 @@
 from .base_parser import *
+from .item_parser import ItemParser
 from .utils.templates import *
 
 
 class EventParser:
     """Same quest block, e.g. all free quests of one event or all story quests of one main record"""
 
-    def __init__(self, fp: str):
+    def __init__(self, fp: str, item_parser: ItemParser = None):
         super().__init__()
         # src_data: key - event_name, value - event_info(wikitext of home/quests/subpages)
         self.src_fp = fp
         self.src_data: Dict[str, Any] = load_json(fp)
         self.data = Events()
+        self._item_parser = item_parser
 
     @count_time
     def parse(self, event_types: List[str] = None, _range: Iterable[int] = None, workers=kWorkersNum):
@@ -66,24 +68,45 @@ class EventParser:
         main_quests = quest_wikitext.get_sections(matches='主线关卡')
         if main_quests:
             event.rewards, event.drops = p_quest_reward_drop(main_quests[0])
+        # check valid items
+        self.check_valid_item(event.drops)
+        self.check_valid_item(event.rewards)
         return key, event
 
     @catch_exception
     def _parse_limit_event(self, key: str) -> Tuple[str, LimitEvent]:
         """100task, event_point, """
-        src_data = self.src_data['Event'][key]
+        event_src_data = self.src_data['Event'][key]
         event = LimitEvent()
 
-        home_wikitext = mwp.parse(src_data['event_page'])
-        quest_wikitext = mwp.parse(src_data['quest_page'])
+        home_wikitext = mwp.parse(event_src_data['event_page'])
+        quest_wikitext = mwp.parse(event_src_data['quest_page'])
 
         params_event_info = parse_template(home_wikitext, '^{{活动信息')
-        event.name = src_data['name']
+        event.name = event_src_data['name']
         self._parse_event_info(params_event_info, event)
+
+        # ====== shop/task/point ======
         event.itemShop = p_event_shop(home_wikitext)
         event.itemTask = t_event_task(parse_template(home_wikitext, '^{{活动任务'))
         event.itemPoint = t_event_point(parse_template(home_wikitext, '^{{活动点数'))
-        # 无限池：
+
+        # ====== quests drop & rewards ======
+        # merge sub pages into main quest page
+        for page in event_src_data['sub_pages']:
+            quest_wikitext.append(page)
+        # not 高难 or repeatable ? rewards : rewards+drops
+        hard_quest_sections = quest_wikitext.get_sections(matches='高难度关卡')
+        if hard_quest_sections:
+            reward_drop = p_quest_reward_drop(hard_quest_sections[0], False)
+            add_dict(event.itemRewardDrop, *reward_drop)
+            quest_wikitext.remove(hard_quest_sections[0])
+        reward_drop = p_quest_reward_drop(quest_wikitext)
+        add_dict(event.itemRewardDrop, *reward_drop)
+
+        add_dict(event.items, event.itemShop, event.itemTask, event.itemPoint, event.itemRewardDrop)
+
+        # ====== 无限池lottery ======
         lottery_templates = home_wikitext.filter_templates(matches='^{{奖品奖池')
         if lottery_templates:
             if '赝作' in event.name:
@@ -95,25 +118,7 @@ class EventParser:
             else:
                 event.lottery = t_event_lottery(parse_template(lottery_templates[-1]))
 
-        # quests drop & rewards
-        # add 高难 -> repeatable ? rewards : rewards+drops
-        hard_quest_sections = quest_wikitext.get_sections(matches='高难度关卡')
-        if hard_quest_sections:
-            reward_drop = p_quest_reward_drop(hard_quest_sections[0], False)
-            add_dict(event.itemDropReward, *reward_drop)
-            quest_wikitext.remove(hard_quest_sections[0])
-        reward_drop = p_quest_reward_drop(quest_wikitext)
-        add_dict(event.itemDropReward, *reward_drop)
-        add_dict(event.items, event.itemShop, event.itemTask, event.itemPoint, event.itemDropReward)
-
-        # sub pages
-        sub_pages = src_data['sub_pages']
-        if sub_pages:
-            for page in sub_pages.values():
-                subpage_wikitext = mwp.parse(page)
-                reward_drop = p_quest_reward_drop(subpage_wikitext)
-                add_dict(event.itemDropReward, *reward_drop)
-
+        # ====== extra ======
         # hunting
         if '狩猎' in event.name:
             # data from 效率剧场
@@ -131,7 +136,7 @@ class EventParser:
                 if f'狩猎关卡 第{i}弹' == event.name:
                     for day, item, drop_rate in item_list:
                         event.extra[item] = f'Day {day} 参考掉率: {drop_rate} AP'
-        # 无限池 lottery
+        # 无限池 free quests' drop
         elif 'BATTLE IN NEWYORK 2019' in event.name:
             event.extra = {'蛮神心脏': '正赛票本: 193.5 AP', '闲古铃': '正赛票本: 110.5 AP',
                            '晓光炉心': 'S正赛票本: 161.8 AP', '人工生命体幼体': 'S正赛票本: 112.6 AP',
@@ -147,6 +152,15 @@ class EventParser:
             event.extra = {"龙之逆鳞": "201.5 AP (巴巴妥司压制战)", "蛮神心脏": "202.7", "人工生命体幼体": "49.8 AP",
                            "无间齿轮": "46.6 AP", "书页": "50.1 AP", "鬼魂提灯": "149.0 AP",
                            "虚影之尘": "119.4 AP", "凶骨": "75.0 AP"}
+
+        # check valid items
+        self.check_valid_item(event.items)
+        self.check_valid_item(event.itemShop)
+        self.check_valid_item(event.itemTask)
+        self.check_valid_item(event.itemPoint)
+        self.check_valid_item(event.itemRewardDrop)
+        self.check_valid_item(event.lottery)
+
         return key, event
 
     @staticmethod
@@ -164,6 +178,17 @@ class EventParser:
         event.grail2crystal = params.get('圣杯转结晶', 0, int)
         event.crystal = params.get('传承结晶', 0, int) - event.grail2crystal
 
+    def check_valid_item(self, data: Dict[str, Any], remain_special=False):
+        if self._item_parser:
+            for item in list(data.keys()):
+                if item not in self._item_parser.data:
+                    data.pop(item)
+                elif not remain_special and ('圣杯' in item or '传承结晶' in item):
+                    data.pop(item)
+
     def dump(self, fp: str):
+        for event in self.data.limitEvents.values():
+            # for debug, comment this to retain item details
+            event.set_ignored(['itemShop', 'itemTask', 'itemPoint', 'itemRewardDrop'])
         dump_json(self.data.to_json(), fp, default=lambda o: o.to_json())
         logger.info(f'{self.__class__.__name__}: dump parsed data at "{fp}"')
