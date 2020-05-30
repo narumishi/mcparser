@@ -1,3 +1,5 @@
+import calendar
+
 from .base_parser import *
 from .item_parser import ItemParser
 from .utils.templates import *
@@ -44,6 +46,7 @@ class EventParser:
             logger.info(f'All {all_num} wikitext downloaded. {len(error_keys)} errors: {error_keys}')
         self.data.mainRecords = sort_dict(self.data.mainRecords, lambda k, v: v.startTimeJp)
         self.data.limitEvents = sort_dict(self.data.limitEvents, lambda k, v: v.startTimeJp)
+        self._parse_tickets()
         return self.data
 
     @catch_exception
@@ -177,6 +180,29 @@ class EventParser:
         event.grail = params.get('圣杯', 0, int)
         event.grail2crystal = params.get('圣杯转结晶', 0, int)
         event.crystal = params.get('传承结晶', 0, int) - event.grail2crystal
+
+    def _parse_tickets(self):
+        wikitext: str = get_site_page('素材交换券')
+        table = wikitextparser.parse(wikitext).tables[-1].data()
+        table.pop(0)  # pop heading
+        assert len(table) > 10
+
+        def _month_str(ym):
+            return f'{ym[0]}/{ym[1]:02d}'
+
+        month_cn, month_jp = (2018, 11), (2017, 8)
+        for row in table:
+            ticket = ExchangeTicket()
+            ticket.monthCn = _month_str(month_cn)
+            ticket.monthJp = _month_str(month_jp)
+            ticket.days = calendar.mdays[month_cn[1]]
+            for i in (2, 3, 4):
+                ticket.items.append(t_one_item(parse_template(row[i], '道具'))[0])
+            self.data.exchangeTickets[ticket.monthCn] = ticket
+            month_cn = calendar.nextmonth(*month_cn)
+            month_jp = calendar.nextmonth(*month_jp)
+        all_months = [e.monthJp for e in self.data.exchangeTickets.values()]
+        logger.info(f'exchange tickets of {len(all_months)} months from {all_months[0]} to {all_months[-1]} (jp)')
 
     def check_valid_item(self, data: Dict[str, Any], remain_special=False):
         if self._item_parser:

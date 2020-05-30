@@ -497,8 +497,8 @@ class MainRecord(EventBase):
 class ExchangeTicket(Jsonable):
     def __init__(self, **kwargs):
         self.days = 0
+        self.monthCn = ''  # as dict key, e.g. 2020/02
         self.monthJp = ''
-        self.monthCn = ''
         self.items: List[str] = []
         super().__init__(**kwargs)
 

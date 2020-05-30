@@ -58,7 +58,7 @@ def p_event_shop(code: Wikicode):
 
 
 # %% common used
-def t_one_item(params: Params):
+def t_one_item(params: Params) -> Tuple[str, int]:
     """{{道具}}{{材料消耗}}{{素材}}"""
     if 'name' in params:  # {{素材
         return params.get('name'), params.get('count', default=1, cast=int)
