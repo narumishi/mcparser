@@ -62,7 +62,7 @@ class EventParser:
         else:
             event.chapter, event.title = event.name.split(maxsplit=1)
 
-        self._parse_event_base(params, event)
+        self._parse_event_info(params, event)
         main_quests = quest_wikitext.get_sections(matches='主线关卡')
         if main_quests:
             event.rewards, event.drops = p_quest_reward_drop(main_quests[0])
@@ -79,14 +79,21 @@ class EventParser:
 
         params_event_info = parse_template(home_wikitext, '^{{活动信息')
         event.name = src_data['name']
-        self._parse_event_base(params_event_info, event)
+        self._parse_event_info(params_event_info, event)
         event.itemShop = p_event_shop(home_wikitext)
         event.itemTask = p_event_task(parse_template(home_wikitext, '^{{活动任务'))
         event.itemPoint = p_event_point(parse_template(home_wikitext, '^{{活动点数'))
         # 无限池：
-        pond_templates = home_wikitext.filter_templates(matches='^{{奖品奖池')
-        if pond_templates:
-            event.lottery = p_event_pond(parse_template(pond_templates[-1]))
+        lottery_templates = home_wikitext.filter_templates(matches='^{{奖品奖池')
+        if lottery_templates:
+            if '赝作' in event.name:
+                lottery_num = len(lottery_templates)
+                assert lottery_num % 2 == 0
+                add_dict(event.lottery,
+                         p_event_pond(parse_template(lottery_templates[lottery_num // 2 - 1])),
+                         p_event_pond(parse_template(lottery_templates[-1])))
+            else:
+                event.lottery = p_event_pond(parse_template(lottery_templates[-1]))
 
         # quests drop & rewards
         # add 高难 -> repeatable ? rewards : rewards+drops
@@ -99,20 +106,16 @@ class EventParser:
         add_dict(event.itemDropReward, *reward_drop)
         add_dict(event.items, event.itemShop, event.itemTask, event.itemPoint, event.itemDropReward)
 
-        # special: amazon, hunting, lottery,
-        if '亚马逊' in event.name:
-            subpages = ['关卡配置/亚马逊仓库', '关卡配置/阿耳忒弥斯神殿塔', '关卡配置/极·阿耳忒弥斯神殿塔']
-            updated = False
-            for page in subpages:
-                if page not in src_data['subpages']:
-                    src_data['subpages'][page] = get_site_page(page)
-                    updated = True
-                subpage_wikitext = mwp.parse(src_data['subpages'][page])
+        # sub pages
+        sub_pages = src_data['sub_pages']
+        if sub_pages:
+            for page in sub_pages.values():
+                subpage_wikitext = mwp.parse(page)
                 reward_drop = p_quest_reward_drop(subpage_wikitext)
                 add_dict(event.itemDropReward, *reward_drop)
-            if updated:
-                dump_json(self.src_data, self.src_fp)
-        elif '狩猎' in event.name:
+
+        # hunting
+        if '狩猎' in event.name:
             # data from 效率剧场
             hunting_data = {
                 5: [(1, '凶骨', 16.1), (2, '宵泣之铁桩', 21.2), (3, '禁断书页', 32.4), (4, '血之泪石', 76.5),
@@ -128,18 +131,26 @@ class EventParser:
                 if f'狩猎关卡 第{i}弹' == event.name:
                     for day, item, drop_rate in item_list:
                         event.extra[item] = f'Day {day} 参考掉率: {drop_rate} AP'
-        # {{奖池 ->{{奖品奖池
-        if 'BATTLE IN NEWYORK 2019' in event.name:
+        # 无限池 lottery
+        elif 'BATTLE IN NEWYORK 2019' in event.name:
             event.extra = {'蛮神心脏': '正赛票本: 193.5 AP', '闲古铃': '正赛票本: 110.5 AP',
                            '晓光炉心': 'S正赛票本: 161.8 AP', '人工生命体幼体': 'S正赛票本: 112.6 AP',
                            '九十九镜': '决赛票本: 198.4 AP', '鬼魂提灯': '决赛票本: 110.3 AP'}
         elif '南丁格尔' in event.name:
             event.extra = {'混沌之爪': '兑换券', '凤凰羽毛': '兑换券', '巨人的戒指': '兑换券',
                            '蛮神心脏': '票本: 197.0 AP', '极光之钢': '票本: 109.7 AP'}
+        # 柱子
+        elif 'ONILAND' in event.name:
+            event.extra = {'真理之卵': '鬼救阿級: 251.3 AP', '极光之钢': '鬼救阿級: 125.8 AP',
+                           '振荡火药': '鬼救阿級: 56.3 AP', '宵泣之铁桩': '鬼救阿級: 57.2 AP'}
+        elif '莱妮丝事件簿' in event.name:
+            event.extra = {"龙之逆鳞": "201.5 AP (巴巴妥司压制战)", "蛮神心脏": "202.7", "人工生命体幼体": "49.8 AP",
+                           "无间齿轮": "46.6 AP", "书页": "50.1 AP", "鬼魂提灯": "149.0 AP",
+                           "虚影之尘": "119.4 AP", "凶骨": "75.0 AP"}
         return key, event
 
     @staticmethod
-    def _parse_event_base(params: Params, event: EventBase):
+    def _parse_event_info(params: Params, event: EventBase):
         event.mcLink = f'https://fgo.wiki/w/{event.name}'
         event.nameJp = params.get('名称jp')
         event.startTimeJp = params.get('开始时间jp') or params.get('时间预估jp')
@@ -159,7 +170,7 @@ class EventParser:
 
 
 # %% templates
-def p_event_shop_one_item(params: Params):
+def p_event_shop_list(params: Params):
     """{{#invoke:EventShopList}}"""
     results: Dict[str, int] = {}
     if not params:
@@ -180,7 +191,7 @@ def p_event_shop(code: Wikicode):
     result: Dict[str, int] = {}
     for template in code.filter_templates(matches='^{{#invoke:EventShopList'):
         params = parse_template(template)
-        add_dict(result, p_event_shop_one_item(params))
+        add_dict(result, p_event_shop_list(params))
     return result
 
 

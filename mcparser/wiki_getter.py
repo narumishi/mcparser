@@ -1,7 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from io import StringIO
-from urllib.request import urlopen
 from urllib.parse import urlencode
+from urllib.request import urlopen
 
 from .utils.util import *
 
@@ -109,7 +109,9 @@ class WikiGetter:
 
         for key, page_link in pages.items():
             wikitext = get_site_page(page_link)
-            assert wikitext != '', f'No.{index}-{page_link} wikitext is null!'
+            if not wikitext:
+                logger.warning(f'No.{index}-{page_link} wikitext is null!')
+                continue
             redirect_link = redirect_page(wikitext)
             assert redirect_link is None, wikitext
             wikitext = remove_tag(wikitext, ('ref', 'br', 'comment', 'del', 'sup', 'include', 'heimu', 'ruby'))
@@ -207,9 +209,27 @@ class EventWikiGetter:
     @catch_exception
     def _down_wikitext(event_info: Dict[str, Any]):
         name = event_info['fulltext']
-        return {
+        sub_pages = {}
+        sub_page_titles = []
+        if '亚马逊' in name:
+            sub_page_titles = ['亚马逊仓库', '阿耳忒弥斯神殿塔', '极·阿耳忒弥斯神殿塔']
+        elif '百重塔' in name:
+            sub_page_titles = ['百重塔', '百重塔(阳炎)']
+        elif '大奥' in name:
+            sub_page_titles = [f'第{i}层' for i in '一二三四五']
+        for title in sub_page_titles:
+            sub_pages[title] = get_site_page(f'{name}/关卡配置/{title}')
+        result = {
             'name': name,
             'event_page': get_site_page(name),
             'quest_page': get_site_page(name + '/关卡配置'),
-            'subpages': {}
+            'sub_pages': sub_pages
         }
+        return result
+
+    @staticmethod
+    def get_event_data(fp='output/wikitext/event.json', **kwargs):
+        event_spider = EventWikiGetter(fp, reload=kwargs.pop('reload', True))
+        event_spider.ask_event_list(event_types=kwargs.pop('event_types', None),
+                                    workers=kwargs.pop('workers', kWorkersNum))
+        event_spider.dump()
