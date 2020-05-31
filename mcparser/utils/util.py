@@ -2,6 +2,7 @@
 from .basic import *
 from .config import *
 
+# warning: nowiki affect wikitext parsing
 kAllTags = ('ref', 'br', 'comment', 'del', 'sup', 'nowiki', 'include', 'heimu', 'texing', 'link', 'ruby', 'bold')
 
 

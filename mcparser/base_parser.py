@@ -21,19 +21,22 @@ class BaseParser(metaclass=abc.ABCMeta):
             _range = all_keys
         valid_keys = [k for k in all_keys if k in _range]
         finish_num, all_num = 0, len(valid_keys)
+        success_keys = []
 
         tasks = [executor.submit(self._parse_one, key) for key in valid_keys]
         for future in as_completed(tasks):
+            finish_num += 1
             result = future.result()
             if result:
                 key, value = result
+                success_keys.append(key)
                 self.data[key] = value
                 logger.debug(f'======= {finish_num}/{all_num}: "{key}" finished ========')
             else:
                 # error in thread or invalid return
                 logger.debug(f'======= There is a thread went wrong, {finish_num}/{all_num} ========')
-            finish_num += 1
-        logger.info(f'All {all_num} wikitext downloaded.')
+        error_keys = [i for i in valid_keys if i not in success_keys]
+        logger.info(f'All {all_num} wikitext downloaded. {len(error_keys)} errors: {error_keys}')
         self.data = dict([(k, self.data[k]) for k in sorted(self.data.keys())])
         return self.data
 

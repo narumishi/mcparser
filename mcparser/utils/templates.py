@@ -502,11 +502,11 @@ def t_quest(params: Params, instance: Quest = None):
                 if '关卡分支' in enemy_text:
                     enemy_text = parse_template(enemy_text, '^{{关卡分支')['1']
                 enemy = t_enemy(parse_template(enemy_text, '^{{敌人'))
-                wave.append(enemy)
-            while len(wave) > 0 and len(wave[-1].name) == 0:
+                wave.append(enemy if enemy else None)
+            while len(wave) > 0 and not wave[-1]:
                 wave.pop()
             battle.enemies.append(wave)
-        while len(battle.enemies) > 0 and len(battle.enemies[-1]) == 0:
+        while len(battle.enemies) > 0 and not battle.enemies[-1]:
             battle.enemies.pop()
 
         drops_text = params.get(f'{i}战利品', '')

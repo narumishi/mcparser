@@ -43,7 +43,7 @@ class EventParser:
                     finished.append(None)
                     logger.warning(f'####### {len(finished)}/{all_num}: went wrong #######')
             error_keys = [k for k in all_keys if k not in finished]
-            logger.info(f'All {all_num} wikitext downloaded. {len(error_keys)} errors: {error_keys}')
+            logger.info(f'All {all_num} events parsed. {len(error_keys)} errors: {error_keys}')
         self.data.mainRecords = sort_dict(self.data.mainRecords, lambda k, v: v.startTimeJp)
         self.data.limitEvents = sort_dict(self.data.limitEvents, lambda k, v: v.startTimeJp)
         self._parse_tickets()
@@ -128,7 +128,7 @@ class EventParser:
             hunting_data = {
                 5: [(1, '凶骨', 16.1), (2, '宵泣之铁桩', 21.2), (3, '禁断书页', 32.4), (4, '血之泪石', 76.5),
                     (4, '英雄之证', 26.7), (5, '陨蹄铁', 31.8), (6, '龙之逆鳞', 114.9), (6, '极光之钢', 69.6)],
-                6: [(1, '凶骨', 16.0), (2, '大骑士勋章', 39.7), (3, '凤凰羽毛', 40.4), (5, '无间齿轮', 44.9),
+                6: [(1, '凶骨', 16.0), (2, '大骑士勋章', 39.7), (3, '凤凰羽毛', 40.4), (4, '无间齿轮', 44.9),
                     (4, '魔术髓液', 41.3), (5, '封魔之灯', 68.9), (5, '振荡火药', 40.8), (6, '咒兽胆石', 98.6),
                     (6, '祸罪的箭镞', 67.6)],
                 7: [(1, '凶骨', 16.0), (2, '八连双晶', 35.0), (3, '凤凰羽毛', 40.2), (4, '闲古铃', 54.8),
@@ -153,7 +153,7 @@ class EventParser:
                            '振荡火药': '鬼救阿級: 56.3 AP', '宵泣之铁桩': '鬼救阿級: 57.2 AP'}
         elif '莱妮丝事件簿' in event.name:
             event.extra = {"龙之逆鳞": "201.5 AP (巴巴妥司压制战)", "蛮神心脏": "202.7", "人工生命体幼体": "49.8 AP",
-                           "无间齿轮": "46.6 AP", "书页": "50.1 AP", "鬼魂提灯": "149.0 AP",
+                           "无间齿轮": "46.6 AP", "禁断书页": "50.1 AP", "鬼魂提灯": "149.0 AP",
                            "虚影之尘": "119.4 AP", "凶骨": "75.0 AP"}
 
         # check valid items
@@ -183,8 +183,9 @@ class EventParser:
 
     def _parse_tickets(self):
         wikitext: str = get_site_page('素材交换券')
-        table = wikitextparser.parse(wikitext).tables[-1].data()
-        table.pop(0)  # pop heading
+        section = mwp.parse(remove_tag(wikitext, ('comment', 'include'))).get_sections(matches='可兑换的素材清单')[0]
+        table = wikitextparser.parse(str(section)).tables[0].data()
+        table.pop(0)  # pop header
         assert len(table) > 10
 
         def _month_str(ym):

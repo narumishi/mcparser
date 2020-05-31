@@ -98,6 +98,7 @@ class GameData(Jsonable):
         self.icons: Dict[str, FileResource] = {}
         self.events = Events()
         self.freeQuests: Dict[str, Quest] = {}
+        self.svtQuests: Dict[str, Quest] = {}
         self.glpk = GLPKData()
         super().__init__(**kwargs)
 
@@ -106,7 +107,7 @@ class GameData(Jsonable):
 
     def from_json(self, data: Dict):
         self.attributes_from_map(data, {'servants': Servant, 'crafts': CraftEssential, 'cmdCodes': CmdCode}, int)
-        self.attributes_from_map(data, {'items': Item, 'icons': FileResource, 'freeQuests': Quest})
+        self.attributes_from_map(data, {'items': Item, 'icons': FileResource, 'freeQuests': Quest, 'svtQuests': Quest})
         super(GameData, self).from_json(data)
 
 
@@ -394,7 +395,7 @@ class Battle(Jsonable):
 
     def from_json(self, data: Dict):
         self.enemies = [[Enemy().from_json(ee) for ee in e] for e in data.pop('enemies', [])]
-        super(Battle, self).from_json(data)
+        super().from_json(data)
 
 
 class Quest(Jsonable):
@@ -421,6 +422,11 @@ class Quest(Jsonable):
             add_dict(result, battle.drops)
         return result
 
+    def get_place(self):
+        """For free quest. Since main story quest has different place for battles"""
+        if self.battles:
+            return self.battles[0].place
+
 
 class FileResource(Jsonable):
     def __init__(self, **kwargs):
@@ -444,7 +450,7 @@ class Events(Jsonable):
     def from_json(self, data: Dict):
         self.attributes_from_map(data, {'limitEvents': LimitEvent, 'mainRecords': MainRecord,
                                         'exchangeTickets': ExchangeTicket})
-        super(Events, self).from_json(data)
+        super().from_json(data)
 
 
 class EventBase(Jsonable):
@@ -511,6 +517,9 @@ class GLPKData(Jsonable):
         self.colNames: List[str] = []
         self.rowNames: List[str] = []
         self.coeff: List[int] = []
-        self.matrix: List[List[float]] = []
+        self.ia: List[int] = []
+        self.ja: List[int] = []
+        self.ar: List[float] = []
         self.cnMaxColNum = 0
+        self.jpMaxColNum = 0
         super().__init__(**kwargs)

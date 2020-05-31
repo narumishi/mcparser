@@ -110,7 +110,7 @@ class WikiGetter:
         for key, page_link in pages.items():
             wikitext = get_site_page(page_link)
             if not wikitext:
-                logger.warning(f'No.{index}-{page_link} wikitext is null!')
+                # logger.warning(f'No.{index}-{page_link} wikitext is null!')
                 continue
             redirect_link = redirect_page(wikitext)
             assert redirect_link is None, wikitext
@@ -130,7 +130,7 @@ class WikiGetter:
                              replace_cols={'avatar': 'icon', 'get': 'obtain', 'np_type': 'nobel_type'})
         svt_spider.down_all_wikitext(_range=kwargs.pop('_range', None),
                                      workers=kwargs.pop('workers', kWorkersNum),
-                                     subpages={'wikitext_voice': '语音'})
+                                     subpages={'wikitext_voice': '语音', 'wikitext_quest': '从者任务'})
         svt_spider.dump()
 
     @staticmethod
