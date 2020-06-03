@@ -1,4 +1,3 @@
-from concurrent.futures.thread import ThreadPoolExecutor
 from urllib.request import urlretrieve
 
 from PIL import Image
@@ -23,11 +22,12 @@ class _Icons:
         if fp:
             self.load(fp)
 
-    def add(self, filename: str, key: str = None, save: bool = True):
+    def add(self, filename: str, key: str = None, save: bool = True, allow_none=False):
         """
         :param filename: full name with suffix, if no suffix, will try filename.jpg and filename.png
         :param key: override default key(filename) for FileResource
         :param save: whether to download icon in self.download_icons()
+        :param allow_none: check icon exist
         :return: dict key
         """
         if not self._initiated:
@@ -50,9 +50,10 @@ class _Icons:
             if info != {}:
                 key = key or fn
                 self.data[key] = FileResource(name=key, filename=fn, url=info['url'], save=save)
-                print(f'add icon: {key}')
+                logger.debug(f'add icon: {key}')
                 return key
-        print(f'Adding icon: "{filename}" not exist!')
+        if not allow_none:
+            logger.warning(f'Adding icon: "{filename}" not exist!')
         return None
 
     def add_common_icons(self):
@@ -64,7 +65,7 @@ class _Icons:
         class_fn = [f'{color}{name}.png' for name in class_names for color in ('铜卡', '金卡')]
         class_back_fn = [f'{name}{color}卡背.png' for name in class_names for color in ('金', '银', '铜', '黑')]
         for fn in (jpg_fn + png_fn + class_fn + class_back_fn):
-            self.add(fn)
+            self.add(fn, allow_none=True)
         self.add('Beast.png', '金卡Beast.png')
         self.add('Beast-gray.png', '铜卡Beast.png')
 
@@ -74,6 +75,7 @@ class _Icons:
         self.add_common_icons()
         os.makedirs(icon_dir, exist_ok=True)
 
+        @catch_exception
         def _down_icon(key):
             icon = self.data[key]
             icon_fp = os.path.join(icon_dir, icon.name)
@@ -82,13 +84,13 @@ class _Icons:
                 icon.url = get_site_page(icon.filename or icon.name, isfile=True).imageinfo.get('url', None)
             if icon.save and icon.url and (force or not os.path.exists(icon_fp)):
                 urlretrieve(icon.url, icon_fp)
-                print(f'downloaded {icon.name}')
+                logger.debug(f'downloaded {icon.name}')
             else:
                 # print(f'skip download {item["filename"]}')
                 pass
             if '卡背' in key and os.stat(icon_fp).st_size > 200000:
                 Image.open(icon_fp).convert('RGB').save(icon_fp, format='jpeg')
-                print(f'compress icon {key}')
+                logger.info(f'compress icon {key}')
 
         executor = ThreadPoolExecutor(max_workers=kWorkersNum * 2)
         for _ in executor.map(_down_icon, self.data.keys()):

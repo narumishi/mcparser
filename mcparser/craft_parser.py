@@ -40,7 +40,7 @@ class CraftParser(BaseParser):
         return self.src_data.index
 
     @catch_exception
-    def _parse_one(self, index: int) -> Tuple[int, CraftEssential]:
+    def _parse_one(self, index: int) -> MapEntry[int, CraftEssential]:
         mc_link = self.src_data.loc[index, 'name_link']
         if threading.current_thread() != threading.main_thread():
             threading.current_thread().setName(f'Craft-{index}-{mc_link}')

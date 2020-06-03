@@ -77,7 +77,7 @@ def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
         for comment in code.filter_comments():
             string = string.replace(str(comment), '')
     if 'br' in tags:
-        string = re.sub(r'<br *?/? *?>', '\n', string)
+        string = re.sub(r'<br[\s/]*>', '\n', string)
     # Replace with contents - sup/del/noinclude
     for tag_name in ('del', 'sup'):
         if tag_name in tags:
@@ -85,10 +85,10 @@ def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
                 string = string.replace(str(tag), str(tag.contents))
 
     if 'nowiki' in tags:
-        string = re.sub(r'<\s*/?\s*nowiki\s*>', '', string)
+        string = re.sub(r'<[\s/]*nowiki[\s/]*>', '', string)
     if 'include' in tags:
         # may nested
-        string = re.sub(r'<\s*/?\s*(include|onlyinclude|includeonly|noinclude)\s*>', '', string)
+        string = re.sub(r'<[\s/]*(include|onlyinclude|includeonly|noinclude)[\s/]*>', '', string)
 
     # wiki templates
     # just keep 1st
@@ -96,6 +96,9 @@ def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
         for template in code.filter_templates(matches=r'^{{(黑幕|heimu|模糊|修正)'):
             params = parse_template(template)
             string = string.replace(str(template), params.get('1', ''))
+        for template in code.filter_templates(matches=r'^{{color'):
+            params = parse_template(template)
+            string = string.replace(str(template), params.get('2', ''))
 
     # replace
     if 'texing' in tags:

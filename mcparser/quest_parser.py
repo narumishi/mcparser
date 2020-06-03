@@ -34,7 +34,7 @@ class QuestParser:
             svt_pd: pd.DataFrame = pickle.load(fd)
         for index in svt_pd.index:
             svt_name = svt_pd.loc[index, 'name_link']
-            print(f'\rsvt quest: {index}-{svt_name}', end='')
+            print(f'\rsvt quest: {index}-{svt_name: <25s}\r', end='')
             quest_text = svt_pd.loc[index, 'wikitext_quest']
             if not quest_text:
                 continue

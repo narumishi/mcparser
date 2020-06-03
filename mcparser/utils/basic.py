@@ -1,14 +1,14 @@
 import json
-import os
 import pickle  # noqas
 import re
 import sys
 import threading
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed  # noqas
 from inspect import signature
 from pprint import pprint  # noqas
-from typing import Any, List, Dict, Type, Union, Iterable, Optional, Sequence, Tuple  # noqas
+from typing import Any, List, Dict, Type, Union, Iterable, Optional, Sequence, Tuple, Callable, T, KT, VT  # noqas
 
 import mwparserfromhell as mwp  # noqas
 import pandas as pd  # noqas
@@ -20,6 +20,7 @@ from mwparserfromhell.wikicode import Wikicode  # noqas
 
 from .log import *
 
+MapEntry = Tuple[KT, VT]
 Wikitext = Union[str, Wikicode, Template]
 G = {}  # global vars
 
@@ -61,7 +62,7 @@ def add_dict(x: Dict[Any, Union[int, float]], *args, in_place=True):
 
 def sort_dict(obj: Dict, key=None, reverse=False):
     """
-    Return a new sorted dict using sorting function `key(k, v)`.
+    Return a new sorted dict using sorting function `key(k)` or `key(k, v)`.
     """
     if key is None:
         sorted_keys = sorted(obj.keys(), reverse=reverse)
@@ -104,13 +105,21 @@ def catch_exception(func):
             return func(*args, **kwargs)
         except:  # noqas
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            logger.error(f'================= Error in {threading.current_thread()} ====================\n'
-                         f'{"".join(traceback.format_exception(exc_type, exc_value, exc_traceback))}')
+            s_args, s_kwargs = str(args), str(kwargs)
+            s = f'================= Error in {threading.current_thread()}, {func} ====================\n'
+            if args:
+                s += f'args={s_args[0:max(20, len(s_args))]}\n'
+            if kwargs:
+                s += f'kwargs={s_kwargs[0:max(50, len(kwargs))]}\n'
+            s += "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+            logger.error(s)
 
     return catch_exception_wrapper
 
 
 def count_time(func):
+    """Count time wrapper"""
+
     def count_time_wrapper(*args, **kwargs):
         t0 = time.time()
         res = func(*args, **kwargs)

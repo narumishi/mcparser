@@ -1,4 +1,3 @@
-from concurrent.futures import ThreadPoolExecutor
 from io import StringIO
 from urllib.parse import urlencode
 from urllib.request import urlopen
@@ -84,27 +83,35 @@ class WikiGetter:
         G[self.fp] = self.data
 
     @count_time
-    def down_all_wikitext(self, _range: Iterable = None, workers=kWorkersNum, subpages: Dict[str, str] = None):
+    def down_all_wikitext(self, _range: Iterable = None, workers=kWorkersNum, sub_pages: Dict[str, str] = None):
         if _range is None:
             _range = self.data.index
         executor = ThreadPoolExecutor(max_workers=workers)
-        valid_index = [i for i in self.data.index if i in _range]
-        finish_num, all_num = 0, len(valid_index)
-        for _ in executor.map(self._download_wikitext, valid_index, [subpages] * len(valid_index)):
-            index = valid_index[finish_num]
+        all_keys, success_keys, error_keys = [i for i in self.data.index if i in _range], [], []
+        finish_num, all_num = 0, len(all_keys)
+        tasks = [executor.submit(self._download_wikitext, index, sub_pages) for index in all_keys]
+        for future in as_completed(tasks):
             finish_num += 1
-            logger.debug(f'======= No. {index} finished, {finish_num}/{all_num} ========')
+            index = future.result()
+            if index is None:
+                logger.warning(f'======= download wikitext {finish_num}/{all_num} FAILED ========')
+            else:
+                success_keys.append(index)
+                logger.debug(f'======= download wikitext {finish_num}/{all_num} success:'
+                             f' No.{index} {self.data.loc[index, "name_link"]}')
         self.data[pd.isna(self.data)] = ''
-        logger.info(f'All {all_num} wikitext downloaded.')
+        error_keys = [k for k in all_keys if k not in success_keys]
+        logger.info(f'All {all_num} wikitext downloaded. {len(error_keys)} errors: {error_keys}',
+                    extra=color_extra('red') if error_keys else None)
 
     @catch_exception
-    def _download_wikitext(self, index: int, subpages: Dict[str, str]):
+    def _download_wikitext(self, index: int, sub_pages: Dict[str, str]) -> int:
         name_link = self.data.loc[index, 'name_link']
         if threading.current_thread() != threading.main_thread():
             threading.current_thread().setName(f'No.{index}-{name_link}')
         pages = {'wikitext': name_link}
-        if subpages:
-            for key, sublink in subpages.items():
+        if sub_pages:
+            for key, sublink in sub_pages.items():
                 pages[key] = name_link + '/' + sublink
 
         for key, page_link in pages.items():
@@ -130,7 +137,7 @@ class WikiGetter:
                              replace_cols={'avatar': 'icon', 'get': 'obtain', 'np_type': 'nobel_type'})
         svt_spider.down_all_wikitext(_range=kwargs.pop('_range', None),
                                      workers=kwargs.pop('workers', kWorkersNum),
-                                     subpages={'wikitext_voice': '语音', 'wikitext_quest': '从者任务'})
+                                     sub_pages={'wikitext_voice': '语音', 'wikitext_quest': '从者任务'})
         svt_spider.dump()
 
     @staticmethod
@@ -186,31 +193,38 @@ class EventWikiGetter:
                 "action": "ask",
                 "format": "json",
                 "query": f"[[分类:有活动信息的页面]][[EventType::{_event_type}]]|?EventNameJP|sort=EventStartJP|limit=500",
-                "api_version": "2",
+                "api_version": "2",  # 2-dict, 3-list
                 "utf8": 1
             }
             response = urlopen(f'https://fgo.wiki/api.php?{urlencode(param)}')
-            event_query_list: List[Dict] = list(json.load(response)['query']['results'].values())
+            event_query_result: Dict = json.load(response)['query']['results']
             events = self.data.setdefault(_event_type, {})
-            finish_num, all_num = 0, len(event_query_list)
-            for result in executor.map(self._down_wikitext, event_query_list):
-                fullname = event_query_list[finish_num]['fulltext']
+
+            all_keys, success_keys, error_keys = list(event_query_result.keys()), [], []
+            finish_num, all_num = 0, len(all_keys)
+            tasks = [executor.submit(self._down_wikitext, e) for e in event_query_result.values()]
+            for future in as_completed(tasks):
                 finish_num += 1
-                if result:
-                    events[fullname] = result
-                    logger.debug(f'======= {_event_type}: No.{finish_num}-"{fullname}" success,'
-                                 f' {finish_num}/{all_num} ========')
+                result = future.result()
+                if result is None:
+                    logger.warning(f'======= download {_event_type} wikitext {finish_num}/{all_num} FAILED ========')
                 else:
-                    logger.warning(f'======= {_event_type}: No.{finish_num}-"{fullname}" failed,'
-                                   f' {finish_num}/{all_num} ========')
-            logger.info(f'{_event_type}: All {all_num} wikitext downloaded.')
+                    key, value = result
+                    success_keys.append(key)
+                    events[key] = value
+                    logger.debug(f'======= download {_event_type} wikitext {finish_num}/{all_num} success: {key}')
+            error_keys = [k for k in all_keys if k not in success_keys]
+            logger.info(f'All {all_num} {_event_type} wikitext downloaded. {len(error_keys)} errors: {error_keys}',
+                        extra=color_extra('red') if error_keys else None)
 
     @staticmethod
     @catch_exception
-    def _down_wikitext(event_info: Dict[str, Any]):
+    def _down_wikitext(event_info: Dict[str, Any]) -> MapEntry[str, Dict]:
         name = event_info['fulltext']
         sub_pages = {}
         sub_page_titles = []
+        tags = ('ref', 'br', 'comment', 'del', 'sup', 'include', 'heimu', 'ruby')
+
         if '亚马逊' in name:
             sub_page_titles = ['亚马逊仓库', '阿耳忒弥斯神殿塔', '极·阿耳忒弥斯神殿塔']
         elif '百重塔' in name:
@@ -218,14 +232,14 @@ class EventWikiGetter:
         elif '大奥' in name:
             sub_page_titles = [f'第{i}层' for i in '一二三四五']
         for title in sub_page_titles:
-            sub_pages[title] = get_site_page(f'{name}/关卡配置/{title}')
+            sub_pages[title] = remove_tag(get_site_page(f'{name}/关卡配置/{title}'), tags=tags)
         result = {
             'name': name,
-            'event_page': get_site_page(name),
-            'quest_page': get_site_page(name + '/关卡配置'),
+            'event_page': remove_tag(get_site_page(name), tags=tags),
+            'quest_page': remove_tag(get_site_page(name + '/关卡配置'), tags=tags),
             'sub_pages': sub_pages
         }
-        return result
+        return name, result
 
     @staticmethod
     def get_event_data(fp='output/wikitext/event.json', **kwargs):

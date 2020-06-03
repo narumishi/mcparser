@@ -1,6 +1,5 @@
 import calendar
 
-from .base_parser import *
 from .item_parser import ItemParser
 from .utils.templates import *
 
@@ -23,34 +22,36 @@ class EventParser:
             event_types = ['MainStory', 'Event']
         for _event_type in event_types:
             event_src_data = self.src_data[_event_type]
-            all_keys = list(event_src_data.keys())
-            valid_keys = [v for i, v in enumerate(all_keys) if _range is None or i in _range]
-            finished, all_num = [], len(valid_keys)
+            all_keys = [v for i, v in enumerate(event_src_data.keys()) if _range is None or i in _range]
+            success_keys, error_keys = [], []
+            finish_num, all_num = 0, len(all_keys)
             if _event_type == 'MainStory':
                 events = self.data.mainRecords
-                tasks = [executor.submit(self._parse_main_story, key) for key in valid_keys]
+                tasks = [executor.submit(self._parse_main_story, key) for key in all_keys]
             else:
                 events = self.data.limitEvents
-                tasks = [executor.submit(self._parse_limit_event, key) for key in valid_keys]
+                tasks = [executor.submit(self._parse_limit_event, key) for key in all_keys]
             for future in as_completed(tasks):
+                finish_num += 1
                 result = future.result()
-                if result is not None:
+                if result is None:
+                    logger.warning(f'======= parse {_event_type} event {finish_num}/{all_num} FAILED ========')
+                else:
                     key, value = result
                     events[key] = value
-                    finished.append(key)
-                    logger.debug(f'======= {len(finished)}/{all_num}: "{key}" finished ========')
-                else:
-                    finished.append(None)
-                    logger.warning(f'####### {len(finished)}/{all_num}: went wrong #######')
-            error_keys = [k for k in all_keys if k not in finished]
-            logger.info(f'All {all_num} events parsed. {len(error_keys)} errors: {error_keys}')
+                    success_keys.append(key)
+                    logger.debug(f'======= parse {_event_type} event {finish_num}/{all_num} success: "{key}"')
+            error_keys = [k for k in all_keys if k not in success_keys]
+            logger.info(f'All {all_num} {_event_type} parsed. {len(error_keys)} errors: {error_keys}',
+                        extra=color_extra('red') if error_keys else None)
+
         self.data.mainRecords = sort_dict(self.data.mainRecords, lambda k, v: v.startTimeJp)
         self.data.limitEvents = sort_dict(self.data.limitEvents, lambda k, v: v.startTimeJp)
         self._parse_tickets()
         return self.data
 
     @catch_exception
-    def _parse_main_story(self, key: str) -> Tuple[str, MainRecord]:
+    def _parse_main_story(self, key: str) -> MapEntry[str, MainRecord]:
         src_data = self.src_data['MainStory'][key]
         event = MainRecord()
 
@@ -67,7 +68,7 @@ class EventParser:
         else:
             event.chapter, event.title = event.name.split(maxsplit=1)
 
-        self._parse_event_info(params, event)
+        t_event_info(params, event)
         main_quests = quest_wikitext.get_sections(matches='主线关卡')
         if main_quests:
             event.rewards, event.drops = p_quest_reward_drop(main_quests[0])
@@ -77,7 +78,7 @@ class EventParser:
         return key, event
 
     @catch_exception
-    def _parse_limit_event(self, key: str) -> Tuple[str, LimitEvent]:
+    def _parse_limit_event(self, key: str) -> MapEntry[str, LimitEvent]:
         """100task, event_point, """
         event_src_data = self.src_data['Event'][key]
         event = LimitEvent()
@@ -87,7 +88,7 @@ class EventParser:
 
         params_event_info = parse_template(home_wikitext, '^{{活动信息')
         event.name = event_src_data['name']
-        self._parse_event_info(params_event_info, event)
+        t_event_info(params_event_info, event)
 
         # ====== shop/task/point ======
         event.itemShop = p_event_shop(home_wikitext)
@@ -115,9 +116,8 @@ class EventParser:
             if '赝作' in event.name:
                 lottery_num = len(lottery_templates)
                 assert lottery_num % 2 == 0
-                add_dict(event.lottery,
-                         t_event_lottery(parse_template(lottery_templates[lottery_num // 2 - 1])),
-                         t_event_lottery(parse_template(lottery_templates[-1])))
+                event.lottery = t_event_lottery(parse_template(lottery_templates[lottery_num // 2 - 1]))
+                t_event_lottery(parse_template(lottery_templates[-1]), event.lottery)
             else:
                 event.lottery = t_event_lottery(parse_template(lottery_templates[-1]))
 
@@ -165,21 +165,6 @@ class EventParser:
         self.check_valid_item(event.lottery)
 
         return key, event
-
-    @staticmethod
-    def _parse_event_info(params: Params, event: EventBase):
-        event.mcLink = f'https://fgo.wiki/w/{event.name}'
-        event.nameJp = params.get('名称jp')
-        event.startTimeJp = params.get('开始时间jp') or params.get('时间预估jp')
-        event.endTimeJp = params.get('结束时间jp') or params.get('结束预估jp')
-        event.startTimeCn = params.get('开始时间cn') or params.get('时间预估cn')
-        event.endTimeCn = params.get('结束时间cn') or params.get('结束预估cn')
-        banner_image = get_site_page(params.get('标题图文件名cn') or params.get('标题图文件名jp'), True)
-        if banner_image.imageinfo != {}:
-            event.bannerUrl = banner_image.imageinfo['url']
-        event.grail = params.get('圣杯', 0, int)
-        event.grail2crystal = params.get('圣杯转结晶', 0, int)
-        event.crystal = params.get('传承结晶', 0, int) - event.grail2crystal
 
     def _parse_tickets(self):
         wikitext: str = get_site_page('素材交换券')

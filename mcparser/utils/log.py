@@ -1,13 +1,53 @@
-__all__ = ['logging', 'logger']
+# __all__ = ['logging', 'logger']
 
 import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-LOG_FORMATTER = logging.Formatter(
-    style='{',
-    datefmt="%m-%d %H:%M:%S",
-    fmt='{filename} [line:{lineno:>3d}] {levelname:<5s}: {message}')
+import colorama
+import termcolor
+
+colorama.init(True)  # fix for windows cmd
+
+
+class ColorFormatter(logging.Formatter):
+    """
+    DEBUG - white
+    INFO - grey
+    WARNING - red
+
+    Or force set color in extra.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        s = super().format(record)
+        color = None
+        if hasattr(record, 'color'):
+            color = getattr(record, 'color').lower()
+            assert color in termcolor.COLORS, f'invalid terminal color: {color}'
+        else:
+            if record.levelno == logging.DEBUG:
+                color = 'white'
+            elif record.levelno == logging.INFO:
+                color = 'grey'
+            elif record.levelno > logging.INFO:
+                color = 'red'
+        if color:
+            s = termcolor.colored(s, color)
+        return s
+
+
+def color_extra(color: str, extra: dict = None):
+    if extra is None:
+        extra = {}
+    extra['color'] = color
+    return extra
+
+
+_date_fmt = "%m-%d %H:%M:%S"
+_fmt = '{filename} [line:{lineno:>3d}] {levelname:<5s}: {message}'
+LOG_FORMATTER = logging.Formatter(style='{', fmt=_fmt, datefmt=_date_fmt)
+COLOR_FORMATTER = ColorFormatter(style='{', fmt=_fmt, datefmt=_date_fmt)
 
 
 def get_logger(name='log', level=logging.INFO, save_path='logs/'):
@@ -25,7 +65,7 @@ def get_logger(name='log', level=logging.INFO, save_path='logs/'):
         _logger.setLevel(logging.DEBUG)
 
         console = logging.StreamHandler()
-        console.setFormatter(LOG_FORMATTER)
+        console.setFormatter(COLOR_FORMATTER)
         console.setLevel(logging.DEBUG)
         _logger.addHandler(console)
 

@@ -87,17 +87,17 @@ def t_base_info(params: Params, instance: ServantBaseInfo = None):
     instance.nameEn = params.get('英文名')
     for i in range(11):
         suffix = '战斗名' if i == 0 else '卡面名' if i == 1 else f'名{i}'
-        list_append(instance.namesOther, params.get('中文' + suffix, tags=kAllTags))
-        list_append(instance.namesJpOther, params.get('日文' + suffix, tags=kAllTags))
-        list_append(instance.namesEnOther, params.get('英文' + suffix, tags=kAllTags))
-    list_append(instance.namesOther, params.get('简称', tags=kAllTags))
-    list_append(instance.namesJpOther, params.get('日文简称', tags=kAllTags))
-    list_append(instance.namesEnOther, params.get('英文简称', tags=kAllTags))
+        list_append(instance.namesOther, params.get('中文' + suffix, tags=True))
+        list_append(instance.namesJpOther, params.get('日文' + suffix, tags=True))
+        list_append(instance.namesEnOther, params.get('英文' + suffix, tags=True))
+    list_append(instance.namesOther, params.get('简称', tags=True))
+    list_append(instance.namesJpOther, params.get('日文简称', tags=True))
+    list_append(instance.namesEnOther, params.get('英文简称', tags=True))
 
-    list_extend(instance.nicknames, re.split(r'[,，\s]', params.get('昵称', '', tags=kAllTags)))
+    list_extend(instance.nicknames, re.split(r'[,，\s]', params.get('昵称', '', tags=True)))
 
     for suffix in ('', '2', '3', '新'):
-        list_append(instance.cv, params.get('声优' + suffix, tags=kAllTags))
+        list_append(instance.cv, params.get('声优' + suffix, tags=True))
     instance.illustrator = params.get('画师')
 
     for suffix in (1, 12, 2, 22):
@@ -196,8 +196,8 @@ def t_active_skill(params: Params, instance: Skill = None):
         instance = Skill()
     instance.icon = params.get('1') + '.png'
     instance.cd = params.get('4', cast=int)
-    name_rank = params.get('2', tags=kAllTags)
-    name_rank_jp = params.get('3', tags=kAllTags)
+    name_rank = params.get('2', tags=True)
+    name_rank_jp = params.get('3', tags=True)
     cn_splits = name_rank.rsplit(maxsplit=1)
     jp_splits = name_rank_jp.rsplit(maxsplit=1)
     assert len(cn_splits) == len(jp_splits), (cn_splits, jp_splits)
@@ -213,7 +213,7 @@ def t_active_skill(params: Params, instance: Skill = None):
         instance.rank = ''  # or None?
     offset = 5  # first effect description is at "5"(str)
     while True:
-        des = params.get(str(offset), tags=kAllTags)
+        des = params.get(str(offset), tags=True)
         if not des:
             break
         effect = Effect()
@@ -245,7 +245,7 @@ def t_passive_skill(params: Params):
         skill.icon += '.png'
         skill.name = params.get(str(offset + 2))
         skill.rank = params.get(str(offset + 3))
-        effect_texts = re.split(r'[＆&+]', params.get(str(offset + 4), tags=kAllTags))
+        effect_texts = re.split(r'[＆&+]', params.get(str(offset + 4), tags=True))
         for text in effect_texts:
             description, value = re.findall(r'^(.*?)(?:\(([\d.]+%?)\))?$', text.strip())[0]
             skill.effects.append(Effect(description=description, lvData=[value]))
@@ -310,7 +310,7 @@ def t_dress_cost(params: Params):
     no = 1
     while True:
         suffix = '' if no == 1 else str(no)
-        two_name = params.get('灵衣名称' + suffix, tags=kAllTags)
+        two_name = params.get('灵衣名称' + suffix, tags=True)
         if two_name is None:
             break
         splits = two_name.split('\n')
@@ -332,11 +332,11 @@ def t_profiles(params: Params):
         profile = SvtProfileData()
         key = '详情' if i == 0 else f'资料{i}'
         profile.title = '角色详情' if i == 0 else f'个人资料{i}'
-        profile.description = params.get(key, tags=kAllTags)
-        profile.descriptionJp = params.get(key + '日文', tags=kAllTags)
-        condition = params.get(key + '条件', tags=kAllTags)
+        profile.description = params.get(key, tags=True)
+        profile.descriptionJp = params.get(key + '日文', tags=True)
+        condition = params.get(key + '条件', tags=True)
         if condition and not re.match(f'羁绊达到Lv\\.{i}[后时]?开放', condition):
-            profile.condition = params.get(key + '条件', tags=kAllTags)
+            profile.condition = params.get(key + '条件', tags=True)
         if profile.descriptionJp:
             instance.append(profile)
     return instance
@@ -348,8 +348,8 @@ def t_fool_profiles(params: Params):
     for suffix in ('', '2'):
         profile = SvtProfileData()
         profile.title = '愚人节资料' + suffix
-        profile.description = params.get('中文' + suffix, tags=kAllTags)
-        profile.descriptionJp = params.get('日文' + suffix, tags=kAllTags)
+        profile.description = params.get('中文' + suffix, tags=True)
+        profile.descriptionJp = params.get('日文' + suffix, tags=True)
         profile.condition = None
         if profile.descriptionJp:
             instance.append(profile)
@@ -363,9 +363,9 @@ def t_voice_table(params: Params, instance: VoiceTable = None):
     instance.section = params.get('表格标题')
     for i in range(1, 60):  # mc: 1~50
         record = VoiceRecord()
-        record.title = params.get(f'标题{i}')
-        record.text = params.get(f'中文{i}')
-        record.textJp = params.get(f'日文{i}')
+        record.title = params.get(f'标题{i}', tags=True)
+        record.text = params.get(f'中文{i}', tags=True)
+        record.textJp = params.get(f'日文{i}', tags=True)
         record.condition = params.get(f'条件{i}')
         record.file = params.get(f'语音{i}')
         if record.textJp:
@@ -411,7 +411,7 @@ def t_craft_essential(params: Params, instance: CraftEssential = None):
         return text.strip()
 
     instance.skillIcon = params.get('图标') + '.png'
-    skill_text = params.get('持有技能', tags=kAllTags)
+    skill_text = params.get('持有技能', tags=True)
     if '最大解放' in skill_text or ('日服' in skill_text and '国服' in skill_text):
         splits = re.split(r' *\n+ *', skill_text)
         if '日服' in skill_text and '国服' in skill_text:
@@ -432,8 +432,8 @@ def t_craft_essential(params: Params, instance: CraftEssential = None):
             event_skill = handle_skill_text(params.get('活动技能' + suffix))
             instance.eventSkills.append(event_skill)
 
-    instance.description = params.get('解说', tags=kAllTags)
-    instance.descriptionJp = params.get('日文解说', tags=kAllTags)
+    instance.description = params.get('解说', tags=True)
+    instance.descriptionJp = params.get('日文解说', tags=True)
     instance.categoryText = params.get('礼装分类')
 
     instance.characters = []
@@ -458,9 +458,9 @@ def t_cmd_code(params: Params, instance: CmdCode = None):
         list_append(instance.illustrators, params.get(key))
 
     instance.skillIcon = params.get('图标') + '.png'
-    instance.skill = params.get('持有技能', tags=kAllTags)
-    instance.description = params.get('解说', tags=kAllTags)
-    instance.descriptionJp = params.get('日文解说', tags=kAllTags)
+    instance.skill = params.get('持有技能', tags=True)
+    instance.description = params.get('解说', tags=True)
+    instance.descriptionJp = params.get('日文解说', tags=True)
     instance.categoryText = params.get('纹章分类')
     instance.characters = []
     list_append(instance.characters, params.get('出场角色'))
@@ -539,11 +539,28 @@ def t_enemy(params: Params, instance: Enemy = None):
     return instance
 
 
-def t_event_shop_list(params: Params):
+def t_event_info(params: Params, event: EventBase):
+    event.mcLink = f'https://fgo.wiki/w/{event.name}'
+    event.nameJp = params.get('名称jp')
+    event.startTimeJp = params.get('开始时间jp') or params.get('时间预估jp')
+    event.endTimeJp = params.get('结束时间jp') or params.get('结束预估jp')
+    event.startTimeCn = params.get('开始时间cn') or params.get('时间预估cn')
+    event.endTimeCn = params.get('结束时间cn') or params.get('结束预估cn')
+    banner_image = get_site_page(params.get('标题图文件名cn') or params.get('标题图文件名jp'), True)
+    if banner_image.imageinfo != {}:
+        event.bannerUrl = banner_image.imageinfo['url']
+    event.grail = params.get('圣杯', 0, int)
+    event.grail2crystal = params.get('圣杯转结晶', 0, int)
+    event.crystal = params.get('传承结晶', 0, int) - event.grail2crystal
+    return event
+
+
+def t_event_shop_list(params: Params, items: Dict[str, int] = None):
     """{{#invoke:EventShopList}}"""
-    results: Dict[str, int] = {}
+    if items is None:
+        items = {}
     if not params:
-        return results
+        return items
     data_str = params.get('data').strip()
     item_list = data_str.split(sep='\n')
     for row in item_list:
@@ -552,15 +569,16 @@ def t_event_shop_list(params: Params):
         name, num = datum_table[1], datum_table[2]
         item, num1 = t_one_item(parse_template(name, '^{{道具'))
         if item and num.isdigit():
-            results[item] = int(num) * num1
-    return results
+            items[item] = int(num) * num1
+    return items
 
 
-def t_event_point(params: Params):
+def t_event_point(params: Params, items: Dict[str, int] = None):
     """{{活动点数}}"""
-    result: Dict[str, int] = {}
+    if items is None:
+        items = {}
     if not params:
-        return result
+        return items
     names: Dict[int, str] = {}
     for key, value in params.items():
         if key.startswith('name'):
@@ -575,31 +593,33 @@ def t_event_point(params: Params):
         num_str = params.get(f'{no}num', '1').strip()
         if num_str.isdigit():
             num = int(num_str)
-            result[name] = result.get(name, 0) + num
+            items[name] = items.get(name, 0) + num
         no += 1
-    return result
+    return items
 
 
-def t_event_task(params: Params):
+def t_event_task(params: Params, items: Dict[str, int] = None):
     """{{活动任务}}"""
-    result: Dict[str, int] = {}
+    if items is None:
+        items = {}
     if not params:
-        return result
+        return items
     for i in range(1, 101):
         reward = params.get(f'jl{i}')
-        add_dict(result, p_items(reward))
-    return result
+        add_dict(items, p_items(reward))
+    return items
 
 
-def t_event_lottery(params: Params):
+def t_event_lottery(params: Params, items: Dict[str, int] = None):
     """{{奖品奖池}}"""
-    result: Dict[str, int] = {}
+    if items is None:
+        items = {}
     if not params:
-        return result
+        return items
     for i in range(1, 13):
         item = params.get(f'道具{i}')
         if item:
-            result[item] = params.get(f'道具{i}次数', cast=int)
+            items[item] = params.get(f'道具{i}次数', cast=int)
     for gem in ('秘石', '魔石', '辉石', '金像', '银像'):
         num = params.get(gem + '次数', 0, int)
         if num > 0:
@@ -610,11 +630,11 @@ def t_event_lottery(params: Params):
                         item = f'{class_name}之{gem}'
                     else:
                         item = f'{class_name}阶{gem}'
-                    result[item] = num
+                    items[item] = num
     qp_num = 0
     for i in range(1, 7):
         qp_per = params.get(f'QP{i}', 0, int)
         if qp_per:
             qp_num += qp_per * params.get(f'QP{i}次数', cast=int)
-    result['QP'] = qp_num
-    return result
+    items['QP'] = qp_num
+    return items

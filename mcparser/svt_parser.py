@@ -14,7 +14,7 @@ class ServantParser(BaseParser):
         return self.src_data.index
 
     @catch_exception
-    def _parse_one(self, index: int) -> Tuple[int, Servant]:
+    def _parse_one(self, index: int) -> MapEntry[int, Servant]:
         mc_link = self.src_data.loc[index, 'name_link']
         if threading.current_thread() != threading.main_thread():
             threading.current_thread().setName(f'Servant-{index}-{mc_link}')

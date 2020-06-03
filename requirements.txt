@@ -1,9 +1,12 @@
+colorama
 jsonpatch
 mwclient
 mwparserfromhell
+numpy
 pandas
 pillow
 pip-chill
+termcolor
 wikitextparser
 # certifi # Installed as dependency for requests
 # chardet # Installed as dependency for requests

@@ -28,7 +28,7 @@ class CmdParser(BaseParser):
         return self.src_data.index
 
     @catch_exception
-    def _parse_one(self, index: int) -> Tuple[int, CmdCode]:
+    def _parse_one(self, index: int) -> MapEntry[int, CmdCode]:
         mc_link = self.src_data.loc[index, 'name_link']
         if threading.current_thread() != threading.main_thread():
             threading.current_thread().setName(f'CmdCode-{index}-{mc_link}')
@@ -46,7 +46,7 @@ class CmdParser(BaseParser):
         check_equal('name', name, cmd_code.name, False)
         list_extend(cmd_code.nameOther, name_other.split('&'))
         # check_equal('des', des, cmd_code.skill, False)
-        cmd_code.obtain = method.replace('%LINK%', f'「{method_text}」')
+        cmd_code.obtain = remove_tag(method.replace('%LINK%', f'「{method_text}」'))
 
         cmd_code.icon = os.path.basename(icon)
         for icon in [cmd_code.icon, cmd_code.skillIcon]:

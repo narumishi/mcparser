@@ -1,11 +1,12 @@
 import abc
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .utils.util import *
 
 
 # noinspection PyMethodMayBeStatic
 class BaseParser(metaclass=abc.ABCMeta):
+    """For Svt/Craft/CmdCode parser"""
+
     def __init__(self):
         self.data: Dict = {}  # override to specify type
 
@@ -15,34 +16,33 @@ class BaseParser(metaclass=abc.ABCMeta):
 
     @count_time
     def parse(self, _range: Iterable = None, workers=kWorkersNum):
+        cls_name = self.__class__.__name__
         executor = ThreadPoolExecutor(max_workers=workers)
-        all_keys = self.get_keys()
-        if _range is None:
-            _range = all_keys
-        valid_keys = [k for k in all_keys if k in _range]
-        finish_num, all_num = 0, len(valid_keys)
-        success_keys = []
+        all_keys = [k for k in self.get_keys() if _range is None or k in _range]
+        success_keys, error_keys = [], []
+        finish_num, all_num = 0, len(all_keys)
 
-        tasks = [executor.submit(self._parse_one, key) for key in valid_keys]
+        tasks = [executor.submit(self._parse_one, key) for key in all_keys]
         for future in as_completed(tasks):
             finish_num += 1
             result = future.result()
-            if result:
+            if result is None:
+                logger.warning(f'======= {cls_name} {finish_num}/{all_num}: FAILED ========')
+            else:
                 key, value = result
                 success_keys.append(key)
                 self.data[key] = value
-                logger.debug(f'======= {finish_num}/{all_num}: "{key}" finished ========')
-            else:
-                # error in thread or invalid return
-                logger.debug(f'======= There is a thread went wrong, {finish_num}/{all_num} ========')
-        error_keys = [i for i in valid_keys if i not in success_keys]
-        logger.info(f'All {all_num} wikitext downloaded. {len(error_keys)} errors: {error_keys}')
-        self.data = dict([(k, self.data[k]) for k in sorted(self.data.keys())])
+                logger.debug(f'======= {cls_name} {finish_num}/{all_num} success:'
+                             f' No.{key} {getattr(value, "mcLink", None) or ""}')
+        error_keys = [k for k in all_keys if k not in success_keys]
+        logger.info(f'{cls_name}: all {all_num} wikitext parsed. {len(error_keys)} errors: {error_keys}',
+                    extra=color_extra('red') if error_keys else None)
+        self.data = sort_dict(self.data)
         return self.data
 
     @abc.abstractmethod
     @catch_exception
-    def _parse_one(self, key: Any) -> Tuple[Any, Any]:
+    def _parse_one(self, key: Any) -> MapEntry:
         """One job for one record. Return (key, result) tuple.
 
         If works > 1, jobs are run in multi-threading, decorate method with `@catch_exception` and
