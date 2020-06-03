@@ -141,7 +141,7 @@ class Servant(Jsonable):
 
 class ServantBaseInfo(Jsonable):
     def __init__(self, **kwargs):
-        self._no = 0
+        self.no = 0
         self.obtain = ''
         self.obtains: List[str] = []
         self.rarity = 0
@@ -182,6 +182,7 @@ class ServantBaseInfo(Jsonable):
         self.deathRate = 0
         self.criticalRate = 0
         super().__init__(**kwargs)
+        self.set_ignored(['no'])
 
 
 class TreasureDevice(Jsonable):
@@ -455,9 +456,8 @@ class Events(Jsonable):
 
 class EventBase(Jsonable):
     def __init__(self, **kwargs):
-        self.name = ''
+        self.name = ''  # also mcLink
         self.nameJp = ''
-        self.mcLink = ''
         self.startTimeJp = ''
         self.endTimeJp = ''
         self.startTimeCn = ''

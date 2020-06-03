@@ -74,7 +74,7 @@ class WikiGetter:
         self.data[list(replace_cols.values())] = df[list(replace_cols.keys())]
 
     @count_time
-    def down_all_wikitext(self, _range: Iterable = None, workers=kWorkersNum, sub_pages: Dict[str, str] = None):
+    def down_all_wikitext(self, _range: Iterable = None, workers: int = None, sub_pages: Dict[str, str] = None):
         if _range is None:
             _range = self.data.index
         executor = ThreadPoolExecutor(max_workers=workers)
@@ -128,7 +128,7 @@ class WikiGetter:
                              remain_cols=['name_link', 'name_cn', 'name_other'],
                              replace_cols={'avatar': 'icon', 'get': 'obtain', 'np_type': 'nobel_type'})
         svt_spider.down_all_wikitext(_range=kwargs.pop('_range', None),
-                                     workers=kwargs.pop('workers', kWorkersNum),
+                                     workers=kwargs.pop('workers', config.default_workers),
                                      sub_pages={'wikitext_voice': '语音', 'wikitext_quest': '从者任务'})
         svt_spider.dump(fp)
 
@@ -144,7 +144,7 @@ class WikiGetter:
             craft_spider.data.loc[index, 'des'] = remove_tag(craft_spider.data.loc[index, 'des'])
             craft_spider.data.loc[index, 'des_max'] = remove_tag(craft_spider.data.loc[index, 'des_max'])
         craft_spider.down_all_wikitext(_range=kwargs.pop('_range', None),
-                                       workers=kwargs.pop('workers', kWorkersNum))
+                                       workers=kwargs.pop('workers', config.default_workers))
         craft_spider.dump(fp)
 
     @staticmethod
@@ -156,7 +156,7 @@ class WikiGetter:
                                           'icon', 'type_marker'],
                              replace_cols={})
         cmd_spider.down_all_wikitext(_range=kwargs.pop('_range', None),
-                                     workers=kwargs.pop('workers', kWorkersNum))
+                                     workers=kwargs.pop('workers', config.default_workers))
         cmd_spider.dump(fp)
 
 
@@ -171,7 +171,7 @@ class EventWikiGetter:
         dump_json(self.data, fp)
         logger.info(f'dump event json wikitext data at "{fp}"')
 
-    def ask_event_list(self, event_types: List[str] = None, workers=kWorkersNum):
+    def ask_event_list(self, event_types: List[str] = None, workers: int = None):
         executor = ThreadPoolExecutor(max_workers=workers)
         if event_types is None:
             event_types = ['MainStory', 'Event']
@@ -183,7 +183,7 @@ class EventWikiGetter:
                 "api_version": "2",  # 2-dict, 3-list
                 "utf8": 1
             }
-            response = urlopen(f'https://fgo.wiki/api.php?{urlencode(param)}')
+            response = urlopen(f'https://{config.domain}/api.php?{urlencode(param)}')
             event_query_result: Dict = json.load(response)['query']['results']
             events = self.data.setdefault(_event_type, {})
 
@@ -203,6 +203,7 @@ class EventWikiGetter:
             error_keys = [k for k in all_keys if k not in success_keys]
             logger.info(f'All {all_num} {_event_type} wikitext downloaded. {len(error_keys)} errors: {error_keys}',
                         extra=color_extra('red') if error_keys else None)
+            self.data[_event_type] = sort_dict(events, lambda x: all_keys.index(x))
 
     @staticmethod
     @catch_exception
@@ -233,5 +234,5 @@ class EventWikiGetter:
         fp = fp or config.paths.event_src
         event_spider = EventWikiGetter(fp)
         event_spider.ask_event_list(event_types=kwargs.pop('event_types', None),
-                                    workers=kwargs.pop('workers', kWorkersNum))
+                                    workers=kwargs.pop('workers', config.default_workers))
         event_spider.dump(fp)

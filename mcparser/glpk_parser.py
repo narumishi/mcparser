@@ -76,12 +76,13 @@ class GLPKParser:
                 self.data.ar.append(round(ap / ap_eff, 3))
 
     def check_quest(self, quest_parser: QuestParser):
-        no_quest = []
+        not_found = []
         for name in self.data.colNames:
             if name not in quest_parser.free_quest_data:
                 if not name.startswith('周') and not name.endswith('级'):
-                    no_quest.append(name)
-        pprint(no_quest)
+                    not_found.append(name)
+        if not_found:
+            logger.warning(f'The following quests not in free quest data: {not_found}')
 
     def dump(self, fp: str = None):
         fp = fp or config.paths.quest_des

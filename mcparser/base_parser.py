@@ -15,9 +15,9 @@ class BaseParser(metaclass=abc.ABCMeta):
         pass
 
     @count_time
-    def parse(self, _range: Iterable = None, workers=kWorkersNum):
+    def parse(self, _range: Iterable = None, workers: int = None):
         cls_name = self.__class__.__name__
-        executor = ThreadPoolExecutor(max_workers=workers)
+        executor = ThreadPoolExecutor(max_workers=workers or config.default_workers)
         all_keys = [k for k in self.get_keys() if _range is None or k in _range]
         success_keys, error_keys = [], []
         finish_num, all_num = 0, len(all_keys)

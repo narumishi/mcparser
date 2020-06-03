@@ -172,7 +172,7 @@ def split_file_link(code: str):
 # %%
 def _find_effect_target(description: str, last=None):
     """
-    https://fgo.wiki/w/Module:SkillString
+    see wiki page 'Module:SkillString'
     not used yet
     """
     if '敌方单体' in description:

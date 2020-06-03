@@ -29,7 +29,7 @@ class Icons:
         """
         if not self._initiated:
             # icon data is commonly used
-            logger.warning('load icons json data before using it')
+            logger.warning(f'load icons json data before using it, load default "{config.paths.icon_des}" if exist')
             self.load()
         fn_split = re.split(r'[(（]有框[)）]', filename)
         if len(fn_split) > 1:
@@ -67,7 +67,7 @@ class Icons:
         self.add('Beast.png', '金卡Beast.png')
         self.add('Beast-gray.png', '铜卡Beast.png')
 
-    def download_icons(self, icon_dir: str = None, force=False):
+    def download_icons(self, icon_dir: str = None, force=False, workers: int = None):
         icon_dir = icon_dir or config.paths.icons_folder
         logger.info(f'downloading icons to {icon_dir}')
         self.add_common_icons()
@@ -90,7 +90,7 @@ class Icons:
                 Image.open(icon_fp).convert('RGB').save(icon_fp, format='jpeg')
                 logger.info(f'compress icon {key}')
 
-        executor = ThreadPoolExecutor(max_workers=kWorkersNum * 2)
+        executor = ThreadPoolExecutor(max_workers=workers or config.default_workers)
         for _ in executor.map(_down_icon, self.data.keys()):
             pass
         for s in ('技能', '宝具'):

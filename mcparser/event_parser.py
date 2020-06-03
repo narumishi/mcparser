@@ -15,8 +15,8 @@ class EventParser:
         self._item_parser = item_parser
 
     @count_time
-    def parse(self, event_types: List[str] = None, _range: Iterable[int] = None, workers=kWorkersNum):
-        executor = ThreadPoolExecutor(max_workers=workers)
+    def parse(self, event_types: List[str] = None, _range: Iterable[int] = None, workers: int = None):
+        executor = ThreadPoolExecutor(max_workers=workers or config.default_workers)
         if event_types is None:
             event_types = ['MainStory', 'Event']
         for _event_type in event_types:

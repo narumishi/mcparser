@@ -3,8 +3,6 @@ import os
 
 import mwclient
 
-kWorkersNum = 20
-
 
 class Config:
     _instance = None
@@ -22,6 +20,7 @@ class Config:
         self.url_craft = f'https://{self.domain}/w/%E7%A4%BC%E8%A3%85%E5%9B%BE%E9%89%B4'
         self.url_cmd = f'https://{self.domain}/w/%E6%8C%87%E4%BB%A4%E7%BA%B9%E7%AB%A0%E5%9B%BE%E9%89%B4'
         self.paths = PathManager()
+        self.default_workers = 40
 
 
 class PathManager:

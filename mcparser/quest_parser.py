@@ -8,43 +8,80 @@ class QuestParser:
         self.free_quest_data: Dict[str, Quest] = {}  # placeCn as key
         self.svt_quest_data: Dict[str, List[Quest]] = {}
 
-    def parse_free_quest(self, event_src_fp: str):
-        event_data: Dict = load_json(event_src_fp)['MainStory']
-        for chapter in event_data:
-            quest_wikitext = mwp.parse(event_data[chapter]['quest_page'])
-            for section in quest_wikitext.get_sections(matches='自由关卡'):
-                for template in section.filter_templates(matches='^{{关卡配置'):
-                    quest = t_quest(parse_template(template))
-                    if not quest.isFree:
-                        continue
-                    quest.chapter = chapter
-                    place = quest.get_place()
-                    if place in self.free_quest_data:
-                        pre_quest = self.free_quest_data.pop(place)
-                        logger.info(f'======= two quests at same place "{place}": {pre_quest.name}-{quest.name} ======')
-                        for q in (pre_quest, quest):
-                            self.free_quest_data[f'{q.get_place()}（{q.name}）'] = q
-                        pass
-                    else:
-                        self.free_quest_data[place] = quest
-            logger.debug(f'parsed free quests of {chapter}')
+    def parse(self, event_src_fp: str, svt_src_fp: str, workers: int = None):
+        executor = ThreadPoolExecutor(max_workers=workers or config.default_workers)
 
-    def parse_svt_quest(self, svt_src_fp: str):
+        # free quests of main story
+        event_data: Dict = load_json(event_src_fp)['MainStory']
+        all_keys, success_keys, error_keys = list(event_data.keys()), [], []
+        finish_num, all_num = 0, len(all_keys)
+        tasks = [executor.submit(self._parse_free_quest, chapter, event_data) for chapter in event_data]
+        for future in as_completed(tasks):
+            finish_num += 1
+            key = future.result()
+            if key is None:
+                logger.warning(f'======= parse free quest {finish_num}/{all_num}: FAILED ========')
+            else:
+                success_keys.append(key)
+                logger.debug(f'======= parse free quest {finish_num}/{all_num} success: {key}')
+        error_keys = [k for k in all_keys if k not in success_keys]
+        logger.info(f'All free quests of {all_num} chapters parsed. {len(error_keys)} errors: {error_keys}',
+                    extra=color_extra('red') if error_keys else None)
+        self.free_quest_data = sort_dict(self.free_quest_data, lambda k, v: all_keys.index(v.chapter))
+
+        # svt quests
         svt_pd: pd.DataFrame = load_pickle(svt_src_fp)
-        for index in svt_pd.index:
-            svt_name = svt_pd.loc[index, 'name_link']
-            print(f'\rsvt quest: {index}-{svt_name: <25s}\r', end='')
-            quest_text = svt_pd.loc[index, 'wikitext_quest']
-            if not quest_text:
-                continue
+        all_keys, success_keys, error_keys = list(svt_pd.index), [], []
+        finish_num, all_num = 0, len(all_keys)
+        tasks = [executor.submit(self._parse_svt_quest, index, svt_pd) for index in svt_pd.index]
+        for future in as_completed(tasks):
+            finish_num += 1
+            key = future.result()
+            if key is None:
+                logger.warning(f'======= parse svt quest {finish_num}/{all_num}: FAILED ========')
+            else:
+                success_keys.append(key)
+                logger.debug(f'======= parse svt quest {finish_num}/{all_num} success:'
+                             f' No.{key} {svt_pd.loc[key, "name_link"]}')
+        error_keys = [k for k in all_keys if k not in success_keys]
+        logger.info(f'All quests of {all_num} servants parsed. {len(error_keys)} errors: {error_keys}',
+                    extra=color_extra('red') if error_keys else None)
+        names = svt_pd['name_link'].tolist()
+        self.svt_quest_data = sort_dict(self.svt_quest_data, lambda k: names.index(k))
+
+    @catch_exception
+    def _parse_free_quest(self, chapter: str, event_data: Dict) -> str:
+        quest_wikitext = mwp.parse(event_data[chapter]['quest_page'])
+        for section in quest_wikitext.get_sections(matches='自由关卡'):
+            for template in section.filter_templates(matches='^{{关卡配置'):
+                quest = t_quest(parse_template(template))
+                if not quest.isFree:
+                    continue
+                quest.chapter = chapter
+                place = quest.get_place()
+                if place in self.free_quest_data:
+                    pre_quest = self.free_quest_data.pop(place)
+                    logger.info(f'======= two quests at same place "{place}": {pre_quest.name}-{quest.name} ======')
+                    for q in (pre_quest, quest):
+                        self.free_quest_data[f'{q.get_place()}（{q.name}）'] = q
+                    pass
+                else:
+                    self.free_quest_data[place] = quest
+        logger.debug(f'parsed free quests of {chapter}')
+        return chapter
+
+    @catch_exception
+    def _parse_svt_quest(self, index: int, svt_pd: pd.DataFrame) -> int:
+        svt_name = svt_pd.loc[index, 'name_link']
+        quest_text = svt_pd.loc[index, 'wikitext_quest']
+        if quest_text:
             for section_title in ('幕间物语', '强化任务'):
                 for section in mwp.parse(quest_text).get_sections(matches=f'^{section_title}$'):
                     for template in section.filter_templates(matches='^{{关卡配置'):
                         quest = t_quest(parse_template(template))
                         quest.chapter = section_title + '-' + svt_name
                         self.svt_quest_data.setdefault(svt_name, []).append(quest)
-        print('')
-        logger.debug(f'All {len(svt_pd.index)} servants\' quests parsed.')
+        return index
 
     def dump(self, fp: str = None):
         fp = fp or config.paths.quest_des

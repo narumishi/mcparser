@@ -77,9 +77,9 @@ def t_base_info(params: Params, instance: ServantBaseInfo = None):
     """{{基础数值}}"""
     if instance is None:
         instance = ServantBaseInfo()
-    instance._no = params.get('序号', cast=int)
+    instance.no = params.get('序号', cast=int)
     instance.rarity = params.get('稀有度', cast=int)
-    instance.rarity2 = {1: 3, 107: 2}.get(instance._no, instance.rarity)  # for 玛修&小安
+    instance.rarity2 = {1: 3, 107: 2}.get(instance.no, instance.rarity)  # for 玛修&小安
     instance.obtain = params.get('获取途径', '无法召唤')
 
     instance.name = params.get('中文名', default=params.get('姓名'))
@@ -142,7 +142,7 @@ def t_base_info(params: Params, instance: ServantBaseInfo = None):
             if illust_name or illust_file:
                 instance.illust[illust_name] = illust_file + '.png'
 
-    if instance._no not in kUnavailableSvt:
+    if instance.no not in kUnavailableSvt:
         for i in '一二三四五':
             instance.cards.append(params.get(f'第{i}张卡'))
         for illust_name, prefix in {'quick': 'Q卡', 'arts': 'A卡', 'buster': 'B卡', 'extra': 'EX卡', 'np': '宝具',
@@ -540,7 +540,6 @@ def t_enemy(params: Params, instance: Enemy = None):
 
 
 def t_event_info(params: Params, event: EventBase):
-    event.mcLink = f'https://fgo.wiki/w/{event.name}'
     event.nameJp = params.get('名称jp')
     event.startTimeJp = params.get('开始时间jp') or params.get('时间预估jp')
     event.endTimeJp = params.get('结束时间jp') or params.get('结束预估jp')
