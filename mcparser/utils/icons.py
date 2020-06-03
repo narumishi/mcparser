@@ -6,7 +6,7 @@ from .datatypes import *
 from .util import *
 
 
-class _Icons:
+class Icons:
     _instance = None
 
     def __new__(cls, *args, **kwargs):
@@ -15,12 +15,9 @@ class _Icons:
         else:
             return cls._instance
 
-    def __init__(self, fp='output/temp/icons.json'):
-        self.fp = fp
+    def __init__(self):
         self.data: Dict[str, FileResource] = {}
         self._initiated = False
-        if fp:
-            self.load(fp)
 
     def add(self, filename: str, key: str = None, save: bool = True, allow_none=False):
         """
@@ -31,6 +28,7 @@ class _Icons:
         :return: dict key
         """
         if not self._initiated:
+            # icon data is commonly used
             logger.warning('load icons json data before using it')
             self.load()
         fn_split = re.split(r'[(（]有框[)）]', filename)
@@ -69,9 +67,9 @@ class _Icons:
         self.add('Beast.png', '金卡Beast.png')
         self.add('Beast-gray.png', '铜卡Beast.png')
 
-    def download_icons(self, icon_dir=None, force=False):
-        icon_dir = icon_dir or os.path.join(os.path.dirname(self.fp), 'icons')
-        logger.info(f'downloading icons at {icon_dir}')
+    def download_icons(self, icon_dir: str = None, force=False):
+        icon_dir = icon_dir or config.paths.icons_folder
+        logger.info(f'downloading icons to {icon_dir}')
         self.add_common_icons()
         os.makedirs(icon_dir, exist_ok=True)
 
@@ -105,21 +103,21 @@ class _Icons:
             filename = f'{s}未强化.png'
             img.save(os.path.join(icon_dir, filename), format="png")
             self.data[filename] = FileResource(name=filename, url=None, save=False)
-        logger.info(f'downloaded icons at {icon_dir}')
+        logger.info(f'downloaded all icon files to "{icon_dir}"')
 
-    def dump(self, fp=None):
+    def dump(self, fp: str = None):
         """Call `download_icon()` before dump icons json"""
-        fp = fp or self.fp
+        fp = fp or config.paths.icon_des
         dump_json(self.data, fp, default=lambda o: o.to_json(), sort_keys=True)
         logger.info(f'dump icons data at "{fp}"')
-        return
 
-    def load(self, fp=None):
-        self.fp = fp = fp or self.fp
+    def load(self, fp: str = None):
+        fp = fp or config.paths.icon_des
         if os.path.exists(fp):
             data = json.load(open(fp, encoding='utf8'))
             self.data = Jsonable.convert_map(data, FileResource)
+            logger.debug(f'loaded icon data from "{fp}"')
         self._initiated = True
 
 
-ICONS = _Icons()
+ICONS = Icons()

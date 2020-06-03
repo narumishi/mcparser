@@ -7,8 +7,11 @@ from .utils.templates import *
 class ServantParser(BaseParser):
     def __init__(self, pkl_fn: str):
         super().__init__()
-        self.src_data: pd.DataFrame = pickle.load(open(pkl_fn, 'rb'))
+        self.src_data: pd.DataFrame = load_pickle(pkl_fn, pd.DataFrame())
         self.data: Dict[int, Servant] = {}
+
+    def dump(self, fp: str = None):
+        super().dump(fp or config.paths.svt_des)
 
     def get_keys(self):
         return self.src_data.index
@@ -41,7 +44,7 @@ class ServantParser(BaseParser):
         nicknames = [s for s in self.src_data.loc[index, 'name_other'].split('&') if s]
         servant.info.nicknames.extend(nicknames)
         servant.info.nicknames = list(set(servant.info.nicknames))
-        servant.info.obtains = self.src_data.loc[index, 'obtains'].split('&')
+        servant.info.obtains = self.src_data.loc[index, 'obtain'].split('&')
 
     def _treasure_device(self, index: int, code: Wikicode, servant: Servant):
         td_sections = code.get_sections(matches='宝具')

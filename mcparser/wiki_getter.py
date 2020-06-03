@@ -8,24 +8,16 @@ from .utils.util import *
 class WikiGetter:
     """Download html code to get csv str then parse it"""
 
-    def __init__(self, fp: str, reload=True):
-        self.fp = fp
-        if reload is False and G.get(fp) is not None:
-            data = G[fp]
-        elif not os.path.exists(fp):
-            data = pd.DataFrame()
+    def __init__(self, pkl_fn: str = None):
+        if pkl_fn and os.path.exists(pkl_fn):
+            self.data = load_pickle(pkl_fn)
         else:
-            data = pickle.load(open(fp, 'rb'))
-            logger.info(f'loaded pickle data: {fp}')
-        G[fp] = data
-        self.data: pd.DataFrame = data
+            self.data = pd.DataFrame()
 
-    def dump(self, fp=None):
-        fp = fp or self.fp
-        os.makedirs(os.path.dirname(fp), exist_ok=True)
-        pickle.dump(self.data, open(fp, 'wb'))
+    def dump(self, fp: str):
+        dump_pickle(self.data, fp)
         self.data.to_json(open(fp + '.json', 'w', encoding='utf8'), orient='index', force_ascii=False, indent=2)
-        logger.info(f'dump pickle and json data at "{fp}(.json)"')
+        logger.info(f'dump pickle and json data at "{fp}[.json]"')
 
     def parse_csv(self, url, remain_cols: List[str] = None, replace_cols: Dict[str, str] = None):
         """Download html and parse csv str to DataFrame
@@ -80,7 +72,6 @@ class WikiGetter:
 
         self.data[remain_cols] = df[remain_cols]
         self.data[list(replace_cols.values())] = df[list(replace_cols.keys())]
-        G[self.fp] = self.data
 
     @count_time
     def down_all_wikitext(self, _range: Iterable = None, workers=kWorkersNum, sub_pages: Dict[str, str] = None):
@@ -130,19 +121,21 @@ class WikiGetter:
         return index
 
     @staticmethod
-    def get_servant_data(fp='output/wikitext/svt.pkl', **kwargs):
-        svt_spider = WikiGetter(fp, reload=kwargs.pop('reload', True))
+    def get_servant_data(fp: str = None, **kwargs):
+        fp = fp or config.paths.svt_src
+        svt_spider = WikiGetter(fp)
         svt_spider.parse_csv(url=config.url_svt,
                              remain_cols=['name_link', 'name_cn', 'name_other'],
                              replace_cols={'avatar': 'icon', 'get': 'obtain', 'np_type': 'nobel_type'})
         svt_spider.down_all_wikitext(_range=kwargs.pop('_range', None),
                                      workers=kwargs.pop('workers', kWorkersNum),
                                      sub_pages={'wikitext_voice': '语音', 'wikitext_quest': '从者任务'})
-        svt_spider.dump()
+        svt_spider.dump(fp)
 
     @staticmethod
-    def get_craft_data(fp='output/wikitext/craft.pkl', **kwargs):
-        craft_spider = WikiGetter(fp, reload=kwargs.pop('reload', True))
+    def get_craft_data(fp: str = None, **kwargs):
+        fp = fp or config.paths.craft_src
+        craft_spider = WikiGetter(fp)
         craft_spider.parse_csv(url=config.url_craft,
                                remain_cols=['name_link', 'name', 'name_other', 'icon', 'hp1', 'hpmax', 'atk1', 'atkmax',
                                             'des', 'des_max', 'type_marker'],
@@ -152,35 +145,29 @@ class WikiGetter:
             craft_spider.data.loc[index, 'des_max'] = remove_tag(craft_spider.data.loc[index, 'des_max'])
         craft_spider.down_all_wikitext(_range=kwargs.pop('_range', None),
                                        workers=kwargs.pop('workers', kWorkersNum))
-        craft_spider.dump()
+        craft_spider.dump(fp)
 
     @staticmethod
-    def get_cmd_data(fp='output/wikitext/cmd.pkl', **kwargs):
-        cmd_spider = WikiGetter(fp, reload=kwargs.pop('reload', True))
+    def get_cmd_data(fp: str = None, **kwargs):
+        fp = fp or config.paths.cmd_src
+        cmd_spider = WikiGetter(fp)
         cmd_spider.parse_csv(url=config.url_cmd,
                              remain_cols=['name_link', 'name', 'name_other', 'des', 'method', 'method_link_text',
                                           'icon', 'type_marker'],
                              replace_cols={})
         cmd_spider.down_all_wikitext(_range=kwargs.pop('_range', None),
                                      workers=kwargs.pop('workers', kWorkersNum))
-        cmd_spider.dump()
+        cmd_spider.dump(fp)
 
 
 class EventWikiGetter:
-    def __init__(self, fp: str, reload=True):
-        self.fp = fp
-        if reload is False and G.get(fp) is not None:
-            data = G[fp]
-        elif not os.path.exists(fp):
-            data = {}
+    def __init__(self, fp: str = None):
+        if fp and os.path.exists(fp):
+            self.data = load_json(fp)
         else:
-            data = load_json(fp)
-            logger.info(f'loaded json data: {fp}')
-        G[fp] = data
-        self.data: Dict[str, Any] = data
+            self.data: Dict[str, Any] = {}
 
-    def dump(self, fp=None):
-        fp = fp or self.fp
+    def dump(self, fp: str):
         dump_json(self.data, fp)
         logger.info(f'dump event json wikitext data at "{fp}"')
 
@@ -242,8 +229,9 @@ class EventWikiGetter:
         return name, result
 
     @staticmethod
-    def get_event_data(fp='output/wikitext/event.json', **kwargs):
-        event_spider = EventWikiGetter(fp, reload=kwargs.pop('reload', True))
+    def get_event_data(fp: str = None, **kwargs):
+        fp = fp or config.paths.event_src
+        event_spider = EventWikiGetter(fp)
         event_spider.ask_event_list(event_types=kwargs.pop('event_types', None),
                                     workers=kwargs.pop('workers', kWorkersNum))
-        event_spider.dump()
+        event_spider.dump(fp)

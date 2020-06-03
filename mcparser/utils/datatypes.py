@@ -94,9 +94,9 @@ class GameData(Jsonable):
         self.unavailable_svts: List[int] = []
         self.crafts: Dict[int, CraftEssential] = {}
         self.cmdCodes: Dict[int, CmdCode] = {}
+        self.events = Events()
         self.items: Dict[str, Item] = {}
         self.icons: Dict[str, FileResource] = {}
-        self.events = Events()
         self.freeQuests: Dict[str, Quest] = {}
         self.svtQuests: Dict[str, Quest] = {}
         self.glpk = GLPKData()

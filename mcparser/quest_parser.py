@@ -8,8 +8,8 @@ class QuestParser:
         self.free_quest_data: Dict[str, Quest] = {}  # placeCn as key
         self.svt_quest_data: Dict[str, List[Quest]] = {}
 
-    def parse_free_quest(self, event_json_fp: str):
-        event_data: Dict = load_json(event_json_fp)['MainStory']
+    def parse_free_quest(self, event_src_fp: str):
+        event_data: Dict = load_json(event_src_fp)['MainStory']
         for chapter in event_data:
             quest_wikitext = mwp.parse(event_data[chapter]['quest_page'])
             for section in quest_wikitext.get_sections(matches='自由关卡'):
@@ -29,9 +29,8 @@ class QuestParser:
                         self.free_quest_data[place] = quest
             logger.debug(f'parsed free quests of {chapter}')
 
-    def parse_svt_quest(self, svt_pkl_fp: str):
-        with open(svt_pkl_fp, 'rb') as fd:
-            svt_pd: pd.DataFrame = pickle.load(fd)
+    def parse_svt_quest(self, svt_src_fp: str):
+        svt_pd: pd.DataFrame = load_pickle(svt_src_fp)
         for index in svt_pd.index:
             svt_name = svt_pd.loc[index, 'name_link']
             print(f'\rsvt quest: {index}-{svt_name: <25s}\r', end='')
@@ -47,7 +46,8 @@ class QuestParser:
         print('')
         logger.debug(f'All {len(svt_pd.index)} servants\' quests parsed.')
 
-    def dump(self, fp: str):
+    def dump(self, fp: str = None):
+        fp = fp or config.paths.quest_des
         dump_json({
             "freeQuests": self.free_quest_data,
             "svtQuests": self.svt_quest_data

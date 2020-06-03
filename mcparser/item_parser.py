@@ -6,7 +6,6 @@ from .utils.util import *
 class ItemParser:
     def __init__(self):
         self.data: Dict[str, Item] = {}
-        pass
 
     def parse(self):
         wikitext: Wikitext = mwp.parse(get_site_page('道具一览'))
@@ -54,6 +53,7 @@ class ItemParser:
 
         self.data = sort_dict(self.data, lambda k, v: v.id)
 
-    def dump(self, fp: str):
+    def dump(self, fp: str = None):
+        fp = fp or config.paths.item_des
         dump_json(self.data, fp, default=lambda o: o.to_json())
         logger.info(f'{self.__class__.__name__}: dump parsed data at "{fp}"')

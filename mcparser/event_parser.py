@@ -7,11 +7,10 @@ from .utils.templates import *
 class EventParser:
     """Same quest block, e.g. all free quests of one event or all story quests of one main record"""
 
-    def __init__(self, fp: str, item_parser: ItemParser = None):
+    def __init__(self, src_fp: str, item_parser: ItemParser = None):
         super().__init__()
         # src_data: key - event_name, value - event_info(wikitext of home/quests/subpages)
-        self.src_fp = fp
-        self.src_data: Dict[str, Any] = load_json(fp)
+        self.src_data: Dict[str, Any] = load_json(src_fp)
         self.data = Events()
         self._item_parser = item_parser
 

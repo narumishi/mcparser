@@ -27,7 +27,7 @@ def check_equal(hint: str, a, b, stop=True):
 class CraftParser(BaseParser):
     def __init__(self, pkl_fn: str, svt_parser: ServantParser = None):
         super().__init__()
-        self.src_data: pd.DataFrame = pickle.load(open(pkl_fn, 'rb'))
+        self.src_data: pd.DataFrame = load_pickle(pkl_fn, pd.DataFrame())
         self.data: Dict[int, CraftEssential] = {}
 
         self._svt_parser = svt_parser
@@ -35,6 +35,9 @@ class CraftParser(BaseParser):
         if svt_parser:
             for index, svt in svt_parser.data.items():
                 self.svt_name_id_map[svt.mcLink] = index
+
+    def dump(self, fp: str = None):
+        super().dump(fp or config.paths.craft_des)
 
     def get_keys(self):
         return self.src_data.index

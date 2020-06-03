@@ -79,6 +79,10 @@ def sort_dict(obj: Dict, key=None, reverse=False):
     return dict([(k, obj[k]) for k in sorted_keys])
 
 
+def load_json(fp: str, **kwargs):
+    return json.load(open(fp, encoding='utf8'), **kwargs)
+
+
 def dump_json(obj, fp: str = None, **kwargs):
     indent = kwargs.pop('indent', 2)
     ensure_ascii = kwargs.pop('ensure_ascii', False)
@@ -90,8 +94,16 @@ def dump_json(obj, fp: str = None, **kwargs):
         return json.dumps(obj, ensure_ascii=ensure_ascii, indent=indent, **kwargs)
 
 
-def load_json(fp: str, **kwargs):
-    return json.load(open(fp, encoding='utf8'), **kwargs)
+def load_pickle(fp: str, default=None):
+    if os.path.exists(fp):
+        return pickle.load(open(fp, 'rb'))
+    else:
+        return default
+
+
+def dump_pickle(obj, fp: str):
+    os.makedirs(os.path.dirname(fp), exist_ok=True)
+    pickle.dump(obj, open(fp, 'wb'))
 
 
 def catch_exception(func):

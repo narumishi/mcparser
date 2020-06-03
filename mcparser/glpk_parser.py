@@ -83,6 +83,7 @@ class GLPKParser:
                     no_quest.append(name)
         pprint(no_quest)
 
-    def dump(self, fp: str):
+    def dump(self, fp: str = None):
+        fp = fp or config.paths.quest_des
         dump_json(self.data, fp, default=lambda o: o.to_json())
         logger.info(f'{self.__class__.__name__}: dump data at "{fp}"')
