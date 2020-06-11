@@ -52,6 +52,7 @@ class CmdParser(BaseParser):
         cmd_code.obtain = remove_tag(method.replace('%LINK%', f'「{method_text}」'))
 
         cmd_code.icon = os.path.basename(icon)
+        ICONS.add(cmd_code.illustration, save=False)
         for icon in [cmd_code.icon, cmd_code.skillIcon]:
             ICONS.add(icon)
         cmd_code.category = int(type_marker)

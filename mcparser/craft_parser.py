@@ -60,10 +60,12 @@ class CraftParser(BaseParser):
         check_equal('mcLink', name_link, craft.mcLink, False)
         check_equal('name', name, craft.name, False)
         list_extend(craft.nameOther, name_other.split('&'))
-        craft.icon = os.path.basename(icon)
 
+        craft.icon = os.path.basename(icon)
+        ICONS.add(craft.illustration, save=False)
         for icon in [craft.icon, craft.skillIcon] + craft.eventIcons:
             ICONS.add(icon)
+
         check_equal('hp min', int(hp1), craft.hpMin)
         check_equal('hp max', int(hp_max), craft.hpMax)
         check_equal('atk min', int(atk1), craft.atkMin)

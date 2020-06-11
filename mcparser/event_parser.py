@@ -78,7 +78,7 @@ class EventParser:
 
     @catch_exception
     def _parse_limit_event(self, key: str) -> MapEntry[str, LimitEvent]:
-        """100task, event_point, """
+        """shop, 100task, event_point, lottery"""
         event_src_data = self.src_data['Event'][key]
         event = LimitEvent()
 
@@ -92,7 +92,8 @@ class EventParser:
         # ====== shop/task/point ======
         event.itemShop = p_event_shop(home_wikitext)
         event.itemTask = t_event_task(parse_template(home_wikitext, '^{{活动任务'))
-        event.itemPoint = t_event_point(parse_template(home_wikitext, '^{{活动点数'))
+        for template in home_wikitext.filter_templates(matches='^{{活动点数'):
+            add_dict(event.itemPoint, t_event_point(parse_template(template)))
 
         # ====== quests drop & rewards ======
         # merge sub pages into main quest page
@@ -112,6 +113,8 @@ class EventParser:
         # ====== 无限池lottery ======
         lottery_templates = home_wikitext.filter_templates(matches='^{{奖品奖池')
         if lottery_templates:
+            if '复刻' in event.name and '赝作' not in event.name:
+                event.lotteryLimit = 10
             if '赝作' in event.name:
                 lottery_num = len(lottery_templates)
                 assert lottery_num % 2 == 0
@@ -131,7 +134,7 @@ class EventParser:
                     (4, '魔术髓液', 41.3), (5, '封魔之灯', 68.9), (5, '振荡火药', 40.8), (6, '咒兽胆石', 98.6),
                     (6, '祸罪的箭镞', 67.6)],
                 7: [(1, '凶骨', 16.0), (2, '八连双晶', 35.0), (3, '凤凰羽毛', 40.2), (4, '闲古铃', 54.8),
-                    (4, '宵泣之铁桩', 36), (5, '战马的幼角', 66.9), (5, '永远结冰', 57.6), (6, '智慧的圣甲虫', 113.2),
+                    (4, '宵泣之铁桩', 36), (5, '战马的幼角', 66.9), (5, '永远结冰', 57.6), (6, '智慧之圣甲虫像', 113.2),
                     (6, '枯淡勾玉', 56.8)],
             }
             for i, item_list in hunting_data.items():
@@ -151,7 +154,7 @@ class EventParser:
             event.extra = {'真理之卵': '鬼救阿級: 251.3 AP', '极光之钢': '鬼救阿級: 125.8 AP',
                            '振荡火药': '鬼救阿級: 56.3 AP', '宵泣之铁桩': '鬼救阿級: 57.2 AP'}
         elif '莱妮丝事件簿' in event.name:
-            event.extra = {"龙之逆鳞": "201.5 AP (巴巴妥司压制战)", "蛮神心脏": "202.7", "人工生命体幼体": "49.8 AP",
+            event.extra = {"龙之逆鳞": "201.5 AP (巴巴妥司压制战)", "蛮神心脏": "202.7 AP", "人工生命体幼体": "49.8 AP",
                            "无间齿轮": "46.6 AP", "禁断书页": "50.1 AP", "鬼魂提灯": "149.0 AP",
                            "虚影之尘": "119.4 AP", "凶骨": "75.0 AP"}
 
@@ -173,17 +176,17 @@ class EventParser:
         assert len(table) > 10
 
         def _month_str(ym):
-            return f'{ym[0]}/{ym[1]:02d}'
+            return f'{ym[0]}-{ym[1]:02d}'
 
         month_cn, month_jp = (2018, 11), (2017, 8)
         for row in table:
             ticket = ExchangeTicket()
-            ticket.monthCn = _month_str(month_cn)
+            ticket.month = _month_str(month_cn)
             ticket.monthJp = _month_str(month_jp)
             ticket.days = calendar.mdays[month_cn[1]]
             for i in (2, 3, 4):
                 ticket.items.append(t_one_item(parse_template(row[i], '道具'))[0])
-            self.data.exchangeTickets[ticket.monthCn] = ticket
+            self.data.exchangeTickets[ticket.month] = ticket
             month_cn = calendar.nextmonth(*month_cn)
             month_jp = calendar.nextmonth(*month_jp)
         all_months = [e.monthJp for e in self.data.exchangeTickets.values()]
@@ -194,7 +197,7 @@ class EventParser:
             for item in list(data.keys()):
                 if item not in self._item_parser.data:
                     data.pop(item)
-                elif not remain_special and ('圣杯' in item or '传承结晶' in item):
+                elif not remain_special and ('圣杯' == item or '传承结晶' == item):
                     data.pop(item)
 
     def dump(self, fp: str):

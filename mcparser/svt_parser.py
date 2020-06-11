@@ -45,6 +45,8 @@ class ServantParser(BaseParser):
         servant.info.nicknames.extend(nicknames)
         servant.info.nicknames = list(set(servant.info.nicknames))
         servant.info.obtains = self.src_data.loc[index, 'obtain'].split('&')
+        for illust in servant.info.illustrations.values():
+            ICONS.add(illust, save=False)
 
     def _treasure_device(self, index: int, code: Wikicode, servant: Servant):
         td_sections = code.get_sections(matches='宝具')
@@ -140,7 +142,7 @@ class ServantParser(BaseParser):
 
     def _bond_points(self, index: int, code: Wikicode, servant: Servant):
         params = parse_template(code, r'^{{羁绊点数')
-        if index != 1:
+        if index != 1 and index not in kUnavailableSvt:
             # 玛修 has no bond points
             for i in range(10):
                 servant.bondPoints.append(params.get(str(i + 1), cast=int))
@@ -157,7 +159,8 @@ class ServantParser(BaseParser):
         for template in code.filter_templates(matches=r'^{{#invoke:VoiceTable'):
             params = parse_template(remove_tag(str(template)), r'^{{#invoke:VoiceTable')
             table = t_voice_table(params)
-            for record in table.table:
-                if record.file:
-                    ICONS.add(record.file, save=False)
+            # # resolve real url in client
+            # for record in table.table:
+            #     if record.voiceFile:
+            #         ICONS.add(record.voiceFile, save=False)
             servant.voices.append(table)

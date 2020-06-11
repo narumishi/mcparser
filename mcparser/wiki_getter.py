@@ -173,6 +173,15 @@ class EventWikiGetter:
 
     def ask_event_list(self, event_types: List[str] = None, workers: int = None):
         executor = ThreadPoolExecutor(max_workers=workers)
+        # add daily first
+        daily_key = '迦勒底之门/每日任务'
+        self.data['DailyQuest'] = {
+            'name': daily_key,
+            'event_page': '',
+            'quest_page': remove_tag(get_site_page(daily_key), tags=kSafeTags),
+            'sub_pages': {}
+        }
+
         if event_types is None:
             event_types = ['MainStory', 'Event']
         for _event_type in event_types:
@@ -211,7 +220,6 @@ class EventWikiGetter:
         name = event_info['fulltext']
         sub_pages = {}
         sub_page_titles = []
-        tags = ('ref', 'br', 'comment', 'del', 'sup', 'include', 'heimu', 'ruby')
 
         if '亚马逊' in name:
             sub_page_titles = ['亚马逊仓库', '阿耳忒弥斯神殿塔', '极·阿耳忒弥斯神殿塔']
@@ -220,11 +228,11 @@ class EventWikiGetter:
         elif '大奥' in name:
             sub_page_titles = [f'第{i}层' for i in '一二三四五']
         for title in sub_page_titles:
-            sub_pages[title] = remove_tag(get_site_page(f'{name}/关卡配置/{title}'), tags=tags)
+            sub_pages[title] = remove_tag(get_site_page(f'{name}/关卡配置/{title}'), tags=kSafeTags)
         result = {
             'name': name,
-            'event_page': remove_tag(get_site_page(name), tags=tags),
-            'quest_page': remove_tag(get_site_page(name + '/关卡配置'), tags=tags),
+            'event_page': remove_tag(get_site_page(name), tags=kSafeTags),
+            'quest_page': remove_tag(get_site_page(name + '/关卡配置'), tags=kSafeTags),
             'sub_pages': sub_pages
         }
         return name, result

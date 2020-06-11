@@ -1,19 +1,25 @@
+from .item_parser import ItemParser
 from .utils.datatypes import *
 from .utils.templates import t_quest
 from .utils.util import *
 
 
 class QuestParser:
-    def __init__(self):
+    def __init__(self, item_parser: ItemParser = None):
         self.free_quest_data: Dict[str, Quest] = {}  # placeCn as key
         self.svt_quest_data: Dict[str, List[Quest]] = {}
+        self._item_parser = item_parser
 
     def parse(self, event_src_fp: str, svt_src_fp: str, workers: int = None):
         executor = ThreadPoolExecutor(max_workers=workers or config.default_workers)
 
         # free quests of main story
-        event_data: Dict = load_json(event_src_fp)['MainStory']
+        src_data = load_json(event_src_fp)
+        event_data: Dict = src_data['MainStory']
+        daily_key = '迦勒底之门/每日任务'
+        event_data[daily_key] = src_data['DailyQuest']
         all_keys, success_keys, error_keys = list(event_data.keys()), [], []
+
         finish_num, all_num = 0, len(all_keys)
         tasks = [executor.submit(self._parse_free_quest, chapter, event_data) for chapter in event_data]
         for future in as_completed(tasks):
@@ -52,21 +58,28 @@ class QuestParser:
     @catch_exception
     def _parse_free_quest(self, chapter: str, event_data: Dict) -> str:
         quest_wikitext = mwp.parse(event_data[chapter]['quest_page'])
-        for section in quest_wikitext.get_sections(matches='自由关卡'):
-            for template in section.filter_templates(matches='^{{关卡配置'):
-                quest = t_quest(parse_template(template))
-                if not quest.isFree:
-                    continue
-                quest.chapter = chapter
-                place = quest.get_place()
-                if place in self.free_quest_data:
-                    pre_quest = self.free_quest_data.pop(place)
-                    logger.info(f'======= two quests at same place "{place}": {pre_quest.name}-{quest.name} ======')
-                    for q in (pre_quest, quest):
-                        self.free_quest_data[f'{q.get_place()}（{q.name}）'] = q
-                    pass
-                else:
-                    self.free_quest_data[place] = quest
+        is_daily = '迦勒底之门/每日任务' == chapter
+        if is_daily:
+            section = quest_wikitext
+        else:
+            sections = quest_wikitext.get_sections(matches='自由关卡')
+            section = sections[0] if sections else mwp.parse('')
+        for template in section.filter_templates(matches='^{{关卡配置'):
+            quest = t_quest(parse_template(template))
+            if not quest.isFree:
+                continue
+            quest.chapter = chapter
+            self.check_valid_item(quest)
+            key = quest.indexKey = quest.name if is_daily else quest.get_place()
+            if key in self.free_quest_data:
+                pre_quest = self.free_quest_data.pop(key)
+                logger.info(f'======= two quests at same place "{key}": {pre_quest.name}-{quest.name} ======')
+                for q in (pre_quest, quest):
+                    q.indexKey = f'{q.get_place()}（{q.name}）'
+                    self.free_quest_data[q.indexKey] = q
+                pass
+            else:
+                self.free_quest_data[key] = quest
         logger.debug(f'parsed free quests of {chapter}')
         return chapter
 
@@ -80,8 +93,21 @@ class QuestParser:
                     for template in section.filter_templates(matches='^{{关卡配置'):
                         quest = t_quest(parse_template(template))
                         quest.chapter = section_title + '-' + svt_name
+                        self.check_valid_item(quest)
                         self.svt_quest_data.setdefault(svt_name, []).append(quest)
         return index
+
+    def check_valid_item(self, quest: Quest, remain_special=False):
+        if self._item_parser:
+            data_to_check = [quest.rewards]
+            for battle in quest.battles:
+                data_to_check.append(battle.drops)
+            for d in data_to_check:
+                for item in list(d.keys()):
+                    if item not in self._item_parser.data:
+                        d.pop(item)
+                    elif not remain_special and ('圣杯' == item or '传承结晶' == item):
+                        d.pop(item)
 
     def dump(self, fp: str = None):
         fp = fp or config.paths.quest_des

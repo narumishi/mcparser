@@ -96,7 +96,7 @@ class GameData(Jsonable):
         self.cmdCodes: Dict[int, CmdCode] = {}
         self.events = Events()
         self.items: Dict[str, Item] = {}
-        self.icons: Dict[str, FileResource] = {}
+        self.icons: Dict[str, IconResource] = {}
         self.freeQuests: Dict[str, Quest] = {}
         self.svtQuests: Dict[str, Quest] = {}
         self.glpk = GLPKData()
@@ -107,7 +107,7 @@ class GameData(Jsonable):
 
     def from_json(self, data: Dict):
         self.attributes_from_map(data, {'servants': Servant, 'crafts': CraftEssential, 'cmdCodes': CmdCode}, int)
-        self.attributes_from_map(data, {'items': Item, 'icons': FileResource, 'freeQuests': Quest, 'svtQuests': Quest})
+        self.attributes_from_map(data, {'items': Item, 'icons': IconResource, 'freeQuests': Quest, 'svtQuests': Quest})
         super(GameData, self).from_json(data)
 
 
@@ -141,11 +141,7 @@ class Servant(Jsonable):
 
 class ServantBaseInfo(Jsonable):
     def __init__(self, **kwargs):
-        self.no = 0
-        self.obtain = ''
-        self.obtains: List[str] = []
-        self.rarity = 0
-        self.rarity2 = 0
+        self.no = 0  # ignored
         self.name = ''
         self.nameJp = ''
         self.nameEn = ''
@@ -153,6 +149,10 @@ class ServantBaseInfo(Jsonable):
         self.namesJpOther: List[str] = []
         self.namesEnOther: List[str] = []
         self.nicknames: List[str] = []
+        self.obtain = ''
+        self.obtains: List[str] = []
+        self.rarity = 0
+        self.rarity2 = 0
         self.weight = ''
         self.height = ''
         self.gender = ''
@@ -161,15 +161,16 @@ class ServantBaseInfo(Jsonable):
         self.attribute = ''
         self.isHumanoid = False
         self.isWeakToEA = False
+        self.isTDNS = False
         self.cv: List[str] = []
         self.alignments: List[str] = []
         self.traits: List[str] = []
         self.ability: Dict[str, str] = {}
-        self.illust: Dict[str, str] = {}
+        self.illustrations: Dict[str, str] = {}
         self.cards: List[str] = []
         self.cardHits: Dict[str, int] = {}
         self.cardHitsDamage: Dict[str, List[int]] = {}
-        self.npRate: Dict[str, int] = {}
+        self.npRate: Dict[str, str] = {}
         self.atkMin = -1
         self.hpMin = -1
         self.atkMax = -1
@@ -178,9 +179,9 @@ class ServantBaseInfo(Jsonable):
         self.hp90 = -1
         self.atk100 = -1
         self.hp100 = -1
-        self.starRate = 0
-        self.deathRate = 0
-        self.criticalRate = 0
+        self.starRate = ''
+        self.deathRate = ''
+        self.criticalRate = ''
         super().__init__(**kwargs)
         self.set_ignored(['no'])
 
@@ -284,7 +285,7 @@ class VoiceRecord(Jsonable):
         self.text = ''
         self.textJp = ''
         self.condition = ''
-        self.file = ''
+        self.voiceFile = ''
         super().__init__(**kwargs)
 
     def __repr__(self):
@@ -294,13 +295,13 @@ class VoiceRecord(Jsonable):
 class CraftEssential(Jsonable):
     def __init__(self, **kwargs):
         self.no = 0
-        self.rarity = 0
+        self.mcLink = ''
         self.name = ''
         self.nameJp = ''
         self.nameOther: List[str] = []
-        self.mcLink = ''
+        self.rarity = 0
         self.icon = ''
-        self.illust = ''
+        self.illustration = ''
         self.illustrators: List[str] = []
         self.cost = 0
         self.hpMin = -1
@@ -329,12 +330,12 @@ class CmdCode(Jsonable):
     def __init__(self, **kwargs):
         self.no = 0
         self.mcLink = ''
-        self.rarity = 0
         self.name = ''
         self.nameJp = ''
         self.nameOther: List[str] = []
+        self.rarity = 0
         self.icon = ''
-        self.illust = ''
+        self.illustration = ''
         self.illustrators: List[str] = []
         self.skillIcon = ''
         self.skill = ''
@@ -354,7 +355,7 @@ class Item(Jsonable):
     def __init__(self, **kwargs):
         self.id = -1  # category-rarity-两位编号
         self.name = ''
-        self.category = 0  # 1-普通素材(包括圣杯结晶),2-技能石,3-职阶棋子，4-特殊
+        self.category = 0  # 1-普通素材(包括圣杯结晶),2-技能石,3-职阶棋子，4-特殊, 5-活动从者再临素材
         self.rarity = 0  # 1~3-铜银金,4-稀有(圣杯结晶等)
         # self.num = 0
         super().__init__(**kwargs)
@@ -363,47 +364,12 @@ class Item(Jsonable):
         return self._get_repr(self.name)
 
 
-class Enemy(Jsonable):
-    """Multiple-hp enemy"""
-
-    def __init__(self, **kwargs):
-        # list length must >=1
-        self.name: List[str] = []
-        self.shownName: List[str] = []
-        self.className: List[str] = []
-        self.rank: List[int] = []
-        self.hp: List[int] = []
-        super().__init__(**kwargs)
-
-    def __repr__(self):
-        return self._get_repr(self.shownName)
-
-    def __bool__(self):
-        return len(self.name) > 0
-
-
-class Battle(Jsonable):
-    def __init__(self, **kwargs):
-        self.ap = 0
-        self.placeJp = ''
-        self.place = ''
-        self.enemies: List[List[Enemy]] = []
-        self.drops: Dict[str, int] = {}
-        super().__init__(**kwargs)
-
-    def __repr__(self):
-        return self._get_repr(self.place)
-
-    def from_json(self, data: Dict):
-        self.enemies = [[Enemy().from_json(ee) for ee in e] for e in data.pop('enemies', [])]
-        super().from_json(data)
-
-
 class Quest(Jsonable):
     def __init__(self, **kwargs):
         self.chapter = ''
-        self.nameJp = ''
         self.name = ''
+        self.nameJp = ''
+        self.indexKey = None
         self.level = 0
         self.bondPoint = 0
         self.experience = 0
@@ -429,10 +395,46 @@ class Quest(Jsonable):
             return self.battles[0].place
 
 
-class FileResource(Jsonable):
+class Battle(Jsonable):
+    def __init__(self, **kwargs):
+        self.ap = 0
+        self.place = ''
+        self.placeJp = ''
+        self.enemies: List[List[Enemy]] = []
+        self.drops: Dict[str, int] = {}
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self._get_repr(self.place)
+
+    def from_json(self, data: Dict):
+        self.enemies = [[Enemy().from_json(ee) for ee in e] for e in data.pop('enemies', [])]
+        super().from_json(data)
+
+
+class Enemy(Jsonable):
+    """Multiple-hp enemy"""
+
+    def __init__(self, **kwargs):
+        # list length must >=1
+        self.name: List[str] = []
+        self.shownName: List[str] = []
+        self.className: List[str] = []
+        self.rank: List[int] = []
+        self.hp: List[int] = []
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self._get_repr(self.shownName)
+
+    def __bool__(self):
+        return len(self.name) > 0
+
+
+class IconResource(Jsonable):
     def __init__(self, **kwargs):
         self.name = ''
-        self.filename = ''
+        self.originName = ''
         self.url = ''
         self.save: bool = True
         super().__init__(**kwargs)
@@ -481,6 +483,7 @@ class LimitEvent(EventBase):
         self.itemPoint: Dict[str, int] = {}
         self.itemRewardDrop: Dict[str, int] = {}
 
+        self.lotteryLimit = -1
         self.lottery: Dict[str, int] = {}  # item-num
         self.extra: Dict[str, str] = {}  # item-comment
 
@@ -503,23 +506,21 @@ class MainRecord(EventBase):
 class ExchangeTicket(Jsonable):
     def __init__(self, **kwargs):
         self.days = 0
-        self.monthCn = ''  # as dict key, e.g. 2020/02
+        self.month = ''  # as dict key, e.g. 2020/02
         self.monthJp = ''
         self.items: List[str] = []
         super().__init__(**kwargs)
 
     def __repr__(self):
-        return self._get_repr(self.monthCn, self.monthJp)
+        return self._get_repr(self.month, self.monthJp)
 
 
 class GLPKData(Jsonable):
     def __init__(self, **kwargs):
         self.colNames: List[str] = []
         self.rowNames: List[str] = []
-        self.coeff: List[int] = []
-        self.ia: List[int] = []
-        self.ja: List[int] = []
-        self.ar: List[float] = []
+        self.costs: List[int] = []
+        self.matrix: List[List[float]] = []
         self.cnMaxColNum = 0
         self.jpMaxColNum = 0
         super().__init__(**kwargs)

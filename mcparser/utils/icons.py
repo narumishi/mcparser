@@ -16,7 +16,7 @@ class Icons:
             return cls._instance
 
     def __init__(self):
-        self.data: Dict[str, FileResource] = {}
+        self.data: Dict[str, IconResource] = {}
         self._initiated = False
 
     def add(self, filename: str, key: str = None, save: bool = True, allow_none=False):
@@ -37,9 +37,9 @@ class Icons:
             self.add(''.join(fn_split))
         if key and key in self.data:
             icon = self.data[key]
-            if not self.data[key].filename.startswith(filename):
+            if not self.data[key].originName.startswith(filename):
                 logger.warning(f'unexpected icon info: key={key}, filename={filename};\n'
-                               f'Which already exist : name={icon.name},filename={icon.filename}')
+                               f'Which already exist : name={icon.name},filename={icon.originName}')
             return key
         if filename in self.data:
             return filename
@@ -47,7 +47,12 @@ class Icons:
             info = get_site_page(fn, True).imageinfo
             if info != {}:
                 key = key or fn
-                self.data[key] = FileResource(name=key, filename=fn, url=info['url'], save=save)
+                icon = IconResource()
+                icon.name = key
+                icon.originName = fn
+                icon.url = info['url']
+                icon.save = save
+                self.data[key] = icon
                 logger.debug(f'add icon: {key}')
                 return key
         if not allow_none:
@@ -55,8 +60,8 @@ class Icons:
         return None
 
     def add_common_icons(self):
-        jpg_fn = [fn + '.jpg' for fn in ('QP', '圣杯', '传承结晶')]
-        png_fn = [fn + '.png' for fn in ('QP', '圣杯', '传承结晶', '圣杯传承结晶', 'Quick', 'Arts', 'Buster',
+        jpg_fn = [fn + '.jpg' for fn in ('QP', '圣杯', '传承结晶')]  # also have .png
+        png_fn = [fn + '.png' for fn in ('圣杯传承结晶', 'Quick', 'Arts', 'Buster',
                                          '技能强化', '宝具强化', '灵衣开放权', '0星', '1星', '2星', '3星', '4星', '5星')]
         class_names = ['All', 'Saber', 'Archer', 'Lancer', 'Rider', 'Caster', 'Assassin', 'Berserker', 'Shielder',
                        'Ruler', 'Avenger', 'Alterego', 'MoonCancer', 'Foreigner']
@@ -79,7 +84,7 @@ class Icons:
             icon_fp = os.path.join(icon_dir, icon.name)
             if not icon.url:
                 # resolve exact file url
-                icon.url = get_site_page(icon.filename or icon.name, isfile=True).imageinfo.get('url', None)
+                icon.url = get_site_page(icon.originName or icon.name, isfile=True).imageinfo.get('url', None)
             if icon.save and icon.url and (force or not os.path.exists(icon_fp)):
                 urlretrieve(icon.url, icon_fp)
                 logger.debug(f'downloaded {icon.name}')
@@ -102,7 +107,7 @@ class Icons:
             img.putpalette(palette)
             filename = f'{s}未强化.png'
             img.save(os.path.join(icon_dir, filename), format="png")
-            self.data[filename] = FileResource(name=filename, url=None, save=False)
+            self.data[filename] = IconResource(name=filename, url=None, save=False)
         logger.info(f'downloaded all icon files to "{icon_dir}"')
 
     def dump(self, fp: str = None):
@@ -115,7 +120,7 @@ class Icons:
         fp = fp or config.paths.icon_des
         if os.path.exists(fp):
             data = json.load(open(fp, encoding='utf8'))
-            self.data = Jsonable.convert_map(data, FileResource)
+            self.data = Jsonable.convert_map(data, IconResource)
             logger.debug(f'loaded icon data from "{fp}"')
         self._initiated = True
 

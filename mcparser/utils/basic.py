@@ -136,7 +136,7 @@ def count_time(func):
         t0 = time.time()
         res = func(*args, **kwargs)
         dt = time.time() - t0
-        logger.info(f'Counting time\n========= {func} run for {dt:.3f} secs =========\n')
+        logger.info(f'========= Time: {func} run for {dt:.3f} secs =========')
         return res
 
     return count_time_wrapper

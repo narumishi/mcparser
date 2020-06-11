@@ -68,7 +68,7 @@ class PathManager:
 
     @property
     def event_src(self):
-        return os.path.join(self.wikitext_folder, f'{self.fn_cmd}_src.json')
+        return os.path.join(self.wikitext_folder, f'{self.fn_event}_src.json')
 
     @property
     def event_des(self):

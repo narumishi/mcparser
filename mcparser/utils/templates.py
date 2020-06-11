@@ -104,18 +104,18 @@ def t_base_info(params: Params, instance: ServantBaseInfo = None):
         list_append(instance.alignments, params.get(f'属性{suffix}'))
     instance.alignments.extend([trim(i) for i in params.get('属性', '').split('·') if trim(i)])
 
-    instance.gender = params.get('性别')
-    instance.height = params.get('身高')
-    instance.weight = params.get('体重')
+    instance.gender = params.get('性别', '')
+    instance.height = params.get('身高', '')
+    instance.weight = params.get('体重', '')
     instance.attribute = params.get('隐藏属性')
     instance.className = params.get('职阶')
     instance.ability = {
-        'strength': params.get('筋力'),
-        'endurance': params.get('耐久'),
-        'agility': params.get('敏捷'),
-        'mana': params.get('魔力'),
-        'luck': params.get('幸运'),
-        'np': params.get('宝具')
+        'strength': params.get('筋力', ''),
+        'endurance': params.get('耐久', ''),
+        'agility': params.get('敏捷', ''),
+        'mana': params.get('魔力', ''),
+        'luck': params.get('幸运', ''),
+        'np': params.get('宝具', '')
     }
     instance.atkMin = params.get('基础ATK', -1, int)
     instance.atkMax = params.get('满级ATK', -1, int)
@@ -128,31 +128,31 @@ def t_base_info(params: Params, instance: ServantBaseInfo = None):
     for i in range(14):
         list_append(instance.traits, params.get('特性' if i == 0 else f'特性{i}'))
     instance.isHumanoid = params.get('人型') in ('是', '1')
-    instance.isWeakToEA = params.get('被EA特供') in ('是', '1')
-    instance.isHumanoid = params.get('天地拟似') in ('是', '1')
+    instance.isWeakToEA = params.get('被EA特攻') in ('是', '1')
+    instance.isTDNS = params.get('天地拟似') in ('是', '1')
 
     if '立绘tabber' in params:
-        for illust_name, content in split_tabber(params.get('立绘tabber')):
+        for illust_name, content in split_tabber(params.get('立绘tabber'), 'Default'):
             illust_file = split_file_link(content)
-            instance.illust[illust_name] = illust_file
+            instance.illustrations[illust_name] = illust_file
     else:
         for i in range(1, 11):
             illust_name = params.get(f'立绘{i}', '')
             illust_file = params.get(f'文件{i}', '')
             if illust_name or illust_file:
-                instance.illust[illust_name] = illust_file + '.png'
+                instance.illustrations[illust_name] = illust_file + '.png'
 
     if instance.no not in kUnavailableSvt:
         for i in '一二三四五':
             instance.cards.append(params.get(f'第{i}张卡'))
-        for illust_name, prefix in {'quick': 'Q卡', 'arts': 'A卡', 'buster': 'B卡', 'extra': 'EX卡', 'np': '宝具',
-                                    'defense': '受击'}.items():
+        for illust_name, prefix in {'Quick': 'Q卡', 'Arts': 'A卡', 'Buster': 'B卡', 'Extra': 'EX卡', 'NP': '宝具',
+                                    'Defense': '受击'}.items():
             # info.npRate[k] = int(float(v.strip('%'))*100)
             instance.npRate[illust_name] = params.get(prefix + 'np率')
-        for illust_name, prefix in {'quick': 'Q卡', 'arts': 'A卡', 'buster': 'B卡', 'extra': 'EX卡', 'np': '宝具卡'}.items():
-            instance.cardHits[illust_name] = params.get(prefix + 'hit数', 0, int)
+        for color, prefix in {'Quick': 'Q卡', 'Arts': 'A卡', 'Buster': 'B卡', 'Extra': 'EX卡', 'NP': '宝具卡'}.items():
+            instance.cardHits[color] = params.get(prefix + 'hit数', 0, int)
             dmg = params.get(prefix + '伤害分布', '').split(',')
-            instance.cardHitsDamage = [int(s) for s in dmg if s.strip()]
+            instance.cardHitsDamage[color] = [int(s) for s in dmg if s.strip()]
         instance.starRate = params.get('出星率')
         instance.deathRate = params.get('即死率')
         instance.criticalRate = params.get('暴击权重')
@@ -164,13 +164,13 @@ def t_treasure_device(params: Params, instance: TreasureDevice = None):
     if instance is None:
         instance = TreasureDevice()
     instance.name = params.get('中文名')
-    instance.nameJp = params.get('日文名')
-    instance.upperName = params.get('国服上标')
-    instance.upperNameJp = params.get('日服上标')
+    instance.nameJp = params.get('日文名', '')
+    instance.upperName = params.get('国服上标', '')
+    instance.upperNameJp = params.get('日服上标', '')
     instance.color = params.get('卡色')
     instance.category = params.get('类型')
-    instance.rank = params.get('阶级')
-    instance.typeText = params.get('种类')
+    instance.rank = params.get('阶级', '')
+    instance.typeText = params.get('种类', '')
     assert instance.color in ('Quick', 'Arts', 'Buster') and instance.category in ('辅助', '单体', '全体'), instance
     for i in 'ABCDEFGH':
         effect = Effect()
@@ -367,7 +367,7 @@ def t_voice_table(params: Params, instance: VoiceTable = None):
         record.text = params.get(f'中文{i}', tags=True)
         record.textJp = params.get(f'日文{i}', tags=True)
         record.condition = params.get(f'条件{i}')
-        record.file = params.get(f'语音{i}')
+        record.voiceFile = params.get(f'语音{i}')
         if record.textJp:
             instance.table.append(record)
     return instance
@@ -383,7 +383,7 @@ def t_craft_essential(params: Params, instance: CraftEssential = None):
     instance.name = params.get('名称')
     instance.nameJp = params.get('日文名称')
     instance.mcLink = params.get('链接名')
-    instance.illust = params.get('图片名', instance.name) + '.png'
+    instance.illustration = params.get('图片名', instance.name) + '.png'
     for i in range(1, 9):
         key = '画师' if i == 1 else f'画师{i}'
         list_append(instance.illustrators, params.get(key))
@@ -452,7 +452,7 @@ def t_cmd_code(params: Params, instance: CmdCode = None):
     instance.name = params.get('名称')
     instance.nameJp = params.get('日文名称')
     instance.mcLink = params.get('链接名')
-    instance.illust = params.get('图片名', instance.name) + '.png'
+    instance.illustration = params.get('图片名', instance.name) + '.png'
     for i in range(1, 9):
         key = '画师' if i == 1 else f'画师{i}'
         list_append(instance.illustrators, params.get(key))

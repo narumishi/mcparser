@@ -3,7 +3,9 @@ from .basic import *
 from .config import *
 
 # warning: nowiki affect wikitext parsing
-kAllTags = ('ref', 'br', 'comment', 'del', 'sup', 'nowiki', 'include', 'heimu', 'texing', 'link', 'ruby', 'bold')
+kAllTags = ('ref', 'br', 'comment', 'del', 'sup', 'include', 'heimu', 'trja'
+            , 'nowiki', 'texing', 'link', 'ruby', 'bold')
+kSafeTags = ('ref', 'br', 'comment', 'del', 'sup', 'include', 'heimu', 'ruby', 'trja')
 
 
 class Params(dict):
@@ -120,6 +122,10 @@ def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
             if shown_text:
                 shown_text = str(shown_text).split('|', maxsplit=1)[0]
             string = string.replace(str(wiki_link), shown_text or link)
+    if 'trja' in tags:
+        for template in code.filter_templates(matches=r'^{{trja'):
+            params = parse_template(template)
+            string = string.replace(str(template), params.get('1') or params.get('2'))
 
     # special
     if 'bold' in tags:
