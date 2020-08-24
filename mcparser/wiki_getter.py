@@ -19,10 +19,13 @@ class WikiGetter:
         self.data.to_json(open(fp + '.json', 'w', encoding='utf8'), orient='index', force_ascii=False, indent=2)
         logger.info(f'dump pickle and json data at "{fp}[.json]"')
 
-    def parse_csv(self, url, remain_cols: List[str] = None, replace_cols: Dict[str, str] = None):
+    def parse_csv(self, url, remain_cols: List[str] = None, replace_cols: Dict[str, str] = None,
+                  override: pd.DataFrame = None):
         """Download html and parse csv str to DataFrame
 
         Pattern: 'var raw_str = "*****";'
+
+        override: only override data if index not in csv
 
         svt cols:
          id,star,name_cn,name_jp,name_en,name_link,name_other,cost,faction,get,hp,atk,class_link,avatar,
@@ -43,6 +46,13 @@ class WikiGetter:
         csv_str = re.findall(r'var raw_str = "(.*?)";', html_code)[0]
         csv_str = csv_str.replace('\\n', '\n')
         df: pd.DataFrame = pd.read_csv(StringIO(csv_str), sep=',', index_col='id', dtype='object')
+        if override is not None:
+            for i in override.index:
+                # only override if index not in csv
+                if i not in df.index:
+                    for j in override.columns:
+                        if not pd.isna(override.loc[i, j]):
+                            df.loc[i, j] = override.loc[i, j]
         df = df.fillna('')
 
         # override_data
@@ -131,7 +141,8 @@ class WikiGetter:
         svt_spider = WikiGetter(fp)
         svt_spider.parse_csv(url=config.url_svt,
                              remain_cols=['name_link', 'name_cn', 'name_other'],
-                             replace_cols={'avatar': 'icon', 'get': 'obtain', 'np_type': 'nobel_type'})
+                             replace_cols={'avatar': 'icon', 'get': 'obtain', 'np_type': 'nobel_type'},
+                             override=kwargs.pop('override', None))
         svt_spider.down_all_wikitext(_range=kwargs.pop('_range', None),
                                      workers=kwargs.pop('workers', config.default_workers),
                                      sub_pages={'wikitext_voice': '语音', 'wikitext_quest': '从者任务'})
@@ -144,7 +155,8 @@ class WikiGetter:
         craft_spider.parse_csv(url=config.url_craft,
                                remain_cols=['name_link', 'name', 'name_other', 'icon', 'hp1', 'hpmax', 'atk1', 'atkmax',
                                             'des', 'des_max', 'type_marker'],
-                               replace_cols={})
+                               replace_cols={},
+                               override=kwargs.pop('override', None))
         for index in craft_spider.data.index:
             craft_spider.data.loc[index, 'des'] = remove_tag(craft_spider.data.loc[index, 'des'])
             craft_spider.data.loc[index, 'des_max'] = remove_tag(craft_spider.data.loc[index, 'des_max'])
@@ -159,7 +171,8 @@ class WikiGetter:
         cmd_spider.parse_csv(url=config.url_cmd,
                              remain_cols=['name_link', 'name', 'name_other', 'des', 'method', 'method_link_text',
                                           'icon', 'type_marker'],
-                             replace_cols={})
+                             replace_cols={},
+                             override=kwargs.pop('override', None))
         cmd_spider.down_all_wikitext(_range=kwargs.pop('_range', None),
                                      workers=kwargs.pop('workers', config.default_workers))
         cmd_spider.dump(fp)

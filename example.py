@@ -118,10 +118,11 @@ if 'pack' in tasks:
     # make_dataset(config.paths.dataset_des, sp, cep, ccp, ep, ip, ICONS, qp, gp)
     make_dataset(config.paths.dataset_des)
     make_zip('output/dataset.zip')
-    make_zip(r'D:\Projects\AndroidStudioProjects\chaldea\res\data\dataset.zip')
+    if is_windows():
+        make_zip(r'D:\Projects\AndroidStudioProjects\chaldea\res\data\dataset.zip')
 else:
     print('skip pack')
 
 # %%
 dt = time.time() - t0
-logger.info(f'====== run example for {dt:.1f} seconds =====')
+logger.info(f'====== run example for {int(dt / 60)} min {dt % 60:.1f} sec =====')

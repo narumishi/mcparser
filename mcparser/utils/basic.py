@@ -1,5 +1,6 @@
 import json
 import pickle  # noqas
+import platform
 import re
 import sys
 import threading
@@ -140,3 +141,11 @@ def count_time(func):
         return res
 
     return count_time_wrapper
+
+
+def is_windows():
+    return platform.system().lower() == 'windows'
+
+
+def is_macos():
+    return platform.system().lower() == 'darwin'
