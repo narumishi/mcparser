@@ -96,7 +96,7 @@ class WikiGetter:
                     extra=color_extra('red') if error_keys else None)
 
     @catch_exception
-    def _download_wikitext(self, index: int, sub_pages: Dict[str, str]) -> int:
+    def _download_wikitext(self, index: int, sub_pages: Dict[str, str], ensure_exist: bool = True) -> int:
         name_link = self.data.loc[index, 'name_link']
         if threading.current_thread() != threading.main_thread():
             threading.current_thread().setName(f'No.{index}-{name_link}')
@@ -108,10 +108,15 @@ class WikiGetter:
         for key, page_link in pages.items():
             wikitext = get_site_page(page_link)
             if not wikitext:
-                # logger.warning(f'No.{index}-{page_link} wikitext is null!')
+                if key == 'wikitext':
+                    logger.warning(f'No.{index}-{page_link} wikitext is null!')
                 continue
             redirect_link = redirect_page(wikitext)
-            assert redirect_link is None, wikitext
+            if redirect_link:
+                logger.warning(f'redirect No.{index}-{name_link} to {redirect_link}')
+                self.data.loc[index, 'name_link'] = redirect_link
+                wikitext = get_site_page(redirect_link)
+            # assert redirect_link is None, (redirect_link, wikitext)
             wikitext = remove_tag(wikitext, ('ref', 'br', 'comment', 'del', 'sup', 'include', 'heimu', 'ruby'))
             if key in self.data.keys():
                 old_text = str(self.data.loc[index, key])
@@ -199,6 +204,12 @@ class EventWikiGetter:
             all_keys, success_keys, error_keys = list(event_query_result.keys()), [], []
             finish_num, all_num = 0, len(all_keys)
             tasks = [executor.submit(self._down_wikitext, e) for e in event_query_result.values()]
+
+            # drop renamed event in previous `events` dict
+            for e in [k for k in events.keys() if k not in all_keys]:
+                logger.warning(f'Drop invalid event in previous records: {e}')
+                events.pop(e)
+
             for future in as_completed(tasks):
                 finish_num += 1
                 result = future.result()

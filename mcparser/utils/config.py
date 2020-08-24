@@ -21,6 +21,7 @@ class Config:
         self.url_cmd = f'https://{self.domain}/w/%E6%8C%87%E4%BB%A4%E7%BA%B9%E7%AB%A0%E5%9B%BE%E9%89%B4'
         self.paths = PathManager()
         self.default_workers = 40
+        self.net_retry_times = 10
 
 
 class PathManager:

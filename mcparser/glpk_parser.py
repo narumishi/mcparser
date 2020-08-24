@@ -23,7 +23,7 @@ class GLPKParser:
         self.data.colNames = df.columns.tolist()
         self.data.rowNames = df.index.tolist()
         # TODO: manual update this value
-        self.data.cnMaxColNum = 170
+        self.data.cnMaxColNum = 180
         self.data.jpMaxColNum = len(self.data.colNames)
         for i in range(len(df.index)):
             row = []

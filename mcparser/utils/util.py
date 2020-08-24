@@ -49,8 +49,10 @@ def parse_template(template: Wikitext, match_pattern: str = None) -> Params:
 
 
 # %% site related
-def get_site_page(name, isfile=False, n=10):
+def get_site_page(name: str, isfile: bool = False, n: int = None):
     retry_no = 0
+    if n is None:
+        n = config.net_retry_times
     while retry_no < n:
         try:
             if isfile:

@@ -96,8 +96,11 @@ class Icons:
                 logger.info(f'compress icon {key}')
 
         executor = ThreadPoolExecutor(max_workers=workers or config.default_workers)
-        for _ in executor.map(_down_icon, self.data.keys()):
-            pass
+        tasks = [executor.submit(_down_icon, k) for k in self.data.keys()]
+        finish_num, all_num = 0, len(tasks)
+        for _ in as_completed(tasks):
+            finish_num += 1
+            print(f'\rdownloaded icon {finish_num}/{all_num}...', end='\r')
         for s in ('技能', '宝具'):
             img: Image.Image = Image.open(os.path.join(icon_dir, f'{s}强化.png'))
             palette = img.getpalette()

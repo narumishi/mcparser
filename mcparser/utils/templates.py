@@ -404,7 +404,7 @@ def t_craft_essential(params: Params, instance: CraftEssential = None):
         text = re.sub(r'^(日服|国服)[:：]', '', text)
         text = re.sub(r'{{道具(.*?)}}', '', text)
         text = remove_tag(text)
-        text = re.sub(r'[^ ]\[最大解放\]]', ' [最大解放]', text)
+        text = re.sub(r'[^ ]\[最大解放]]', ' [最大解放]', text)
         text = re.sub(r'提供(\d*)点概念礼装经验值?', '', text)
         text = text.replace('无效果', '')
         text = re.sub(r'{{(中国|日本)}}', r'[\1]', text)
@@ -500,7 +500,8 @@ def t_quest(params: Params, instance: Quest = None):
                 if not enemy_text:
                     continue
                 if '关卡分支' in enemy_text:
-                    enemy_text = parse_template(enemy_text, '^{{关卡分支')['1']
+                    branch_param = parse_template(enemy_text, '^{{关卡分支')
+                    enemy_text = branch_param.get('1', None) or branch_param.get('default')
                 enemy = t_enemy(parse_template(enemy_text, '^{{敌人'))
                 wave.append(enemy if enemy else None)
             while len(wave) > 0 and not wave[-1]:
