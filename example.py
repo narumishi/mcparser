@@ -9,7 +9,11 @@ tasks = ['csv', 'icon', 'item', 'svt', 'craft', 'cmd', 'event', 'quest', 'glpk',
 from mcparser.wiki_getter import *  # noqas
 
 if 'csv' in tasks:
-    WikiGetter.get_servant_data()
+    # override = pd.DataFrame(index=[289, 290, 291],
+    #                         columns=['name_link', 'name_cn', 'avatar', 'get', 'np_type'],
+    #                         data=[['阿比盖尔·威廉姆斯〔夏〕', '阿比盖尔·威廉姆斯〔夏〕', 'Servant289.jpg', '期间限定', '全体']])
+    override = None
+    WikiGetter.get_servant_data(override=override)
     WikiGetter.get_craft_data()
     WikiGetter.get_cmd_data()
     EventWikiGetter.get_event_data()
@@ -97,7 +101,7 @@ from mcparser.glpk_parser import *  # noqas
 if 'glpk' in tasks:
     qp = globals().get('qp', None)
     gp = GLPKParser()
-    gp.parse()
+    gp.parse(cn_columns=180)
     gp.check_quest(qp)
     gp.add_special_drops()
     gp.dump(config.paths.glpk_des)

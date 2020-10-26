@@ -91,14 +91,29 @@ class ServantParser(BaseParser):
         for s in splits:
             if '{{持有技能' not in s:
                 continue
-            one_skill = []  # including 强化前/后
+            skills_unsorted: List[Skill] = []  # including 强化前/后
             for state, skill_code in split_tabber(s):
                 params = parse_template(remove_tag(skill_code), r'^{{持有技能')
                 skill = t_active_skill(params)
                 skill.state = state
-                one_skill.append(skill)
+                skills_unsorted.append(skill)
                 ICONS.add(skill.icon)
-            servant.activeSkills.append(one_skill)
+
+            def _sort_skill(_skill: Skill):
+                if '强化前' in _skill.state:
+                    return 0
+                elif '再强化' in _skill.state:  # Emiya skill3
+                    return 2
+                elif '强化后' in _skill.state:
+                    return 1
+                else:
+                    return 0
+
+            skills_sorted = sorted(skills_unsorted, key=_sort_skill)
+            active_skill = ActiveSkill()
+            active_skill.skills = skills_sorted
+            active_skill.cnState = skills_sorted.index(skills_unsorted[0])
+            servant.activeSkills.append(active_skill)
 
     def _passive_skill(self, index: int, code: Wikicode, servant: Servant):
         sections = code.get_sections(matches='职阶技能')
@@ -136,8 +151,11 @@ class ServantParser(BaseParser):
         sections = code.get_sections(matches='灵衣开放')
         if sections:
             section: Wikicode = sections[0]
-            dress_result = t_dress_cost(parse_template(section, r'^{{灵衣开放素材'))
-            servant.itemCost.dress, servant.itemCost.dressName, servant.itemCost.dressNameJp = dress_result
+            for template in section.filter_templates(matches=r'^{{灵衣开放素材'):
+                dress_result = t_dress_cost(parse_template(template))
+                servant.itemCost.dress.extend(dress_result[0])
+                servant.itemCost.dressName.extend(dress_result[1])
+                servant.itemCost.dressNameJp.extend(dress_result[2])
         return
 
     def _bond_points(self, index: int, code: Wikicode, servant: Servant):

@@ -118,7 +118,8 @@ class Servant(Jsonable):
         self.icon = ''
         self.info = ServantBaseInfo()
         self.treasureDevice: List[TreasureDevice] = []
-        self.activeSkills: List[List[Skill]] = []
+        # self.activeSkills: List[List[Skill]] = []
+        self.activeSkills: List[ActiveSkill] = []
         self.passiveSkills: List[Skill] = []
         self.itemCost = ItemCost()
         self.bondPoints: List[int] = []
@@ -132,10 +133,8 @@ class Servant(Jsonable):
         return self._get_repr(self.no, self.mcLink)
 
     def from_json(self, data: Dict):
-        self.attributes_from_list(data, {'treasureDevice': TreasureDevice, 'passiveSkills': Skill,
-                                         'profiles': SvtProfileData, 'voices': VoiceTable})
-        self.activeSkills = [[Skill().from_json(skill) for skill in skills] for skills in
-                             data.pop('activeSkills', [[], [], []])]
+        self.attributes_from_list(data, {'treasureDevice': TreasureDevice, 'activeSkills': ActiveSkill,
+                                         'passiveSkills': Skill, 'profiles': SvtProfileData, 'voices': VoiceTable})
         super(Servant, self).from_json(data)
 
 
@@ -209,6 +208,20 @@ class TreasureDevice(Jsonable):
     def from_json(self, data: Dict):
         self.attributes_from_list(data, {'effects': Effect})
         super(TreasureDevice, self).from_json(data)
+
+
+class ActiveSkill(Jsonable):
+    def __init__(self, **kwargs):
+        self.cnState = 0
+        self.skills: List[Skill] = []
+        super().__init__(**kwargs)
+
+    def __repr__(self):
+        return self._get_repr([s.name for s in self.skills])
+
+    def from_json(self, data: Dict):
+        self.attributes_from_list(data, {'skills': Skill})
+        super().from_json(data)
 
 
 class Skill(Jsonable):

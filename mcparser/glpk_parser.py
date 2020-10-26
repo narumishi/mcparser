@@ -13,7 +13,7 @@ class GLPKParser:
         self.data = GLPKData()
         self.df: Optional[pd.DataFrame] = None
 
-    def parse(self):
+    def parse(self, cn_columns: int):
         csv_str = get_site_page('Widget:QuestItemAP/data')
         df: pd.DataFrame = pd.read_csv(StringIO(csv_str), index_col='地点')
         df.pop('绊')
@@ -23,7 +23,7 @@ class GLPKParser:
         self.data.colNames = df.columns.tolist()
         self.data.rowNames = df.index.tolist()
         # TODO: manual update this value
-        self.data.cnMaxColNum = 180
+        self.data.cnMaxColNum = cn_columns
         self.data.jpMaxColNum = len(self.data.colNames)
         for i in range(len(df.index)):
             row = []
