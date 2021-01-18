@@ -3,8 +3,8 @@ from .basic import *
 from .config import *
 
 # warning: nowiki affect wikitext parsing
-kAllTags = ('ref', 'br', 'comment', 'del', 'sup', 'include', 'heimu', 'trja'
-            , 'nowiki', 'texing', 'link', 'ruby', 'bold')
+kAllTags = ('ref', 'br', 'comment', 'del', 'sup', 'include', 'heimu', 'trja', 'nowiki',
+            'texing', 'link', 'ruby', 'bold')
 kSafeTags = ('ref', 'br', 'comment', 'del', 'sup', 'include', 'heimu', 'ruby', 'trja')
 
 
@@ -26,6 +26,9 @@ class Params(dict):
             v = remove_tag(v, tags)
         if cast is not None:
             try:
+                # ,分隔符
+                if cast == int:
+                    v = v.replace(',', '')
                 v = cast(v)
             except:  # noqas
                 v = default
@@ -62,6 +65,7 @@ def get_site_page(name: str, isfile: bool = False, n: int = None):
             return result
         except:  # noqas
             retry_no += 1
+            time.sleep(2)
     logger.error(f'Error download page "{name}" after {n} retry.')
     return None
 
@@ -116,7 +120,7 @@ def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
             string = string.replace(str(template), f"{params.get('1')}[{params.get('2')}]")
     if 'link' in tags:
         # remove [[File:a.jpg|b|c]] - it show img
-        string = re.sub(r'\[\[(文件|File):([^\[\]]*?)\]\]', '', string)
+        string = re.sub(r'\[\[(文件|File):([^\[\]]*?)]]', '', string)
         for wiki_link in code.filter_wikilinks():  # type:mwp.nodes.wikilink.Wikilink
             # [[语音关联从者::somebody]]
             link = re.split(r':+', str(wiki_link.title))[-1]
@@ -127,7 +131,7 @@ def remove_tag(string: str, tags: Sequence[str] = kAllTags, console=False):
     if 'trja' in tags:
         for template in code.filter_templates(matches=r'^{{trja'):
             params = parse_template(template)
-            string = string.replace(str(template), params.get('1') or params.get('2'))
+            string = string.replace(str(template), params.get('1') or params.get('2') or '')
 
     # special
     if 'bold' in tags:

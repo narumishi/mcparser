@@ -15,6 +15,7 @@ class GLPKParser:
 
     def parse(self, cn_columns: int):
         csv_str = get_site_page('Widget:QuestItemAP/data')
+        csv_str = csv_str.replace('航行点', '起航点').replace('得摩斯岛', '戴摩斯岛')
         df: pd.DataFrame = pd.read_csv(StringIO(csv_str), index_col='地点')
         df.pop('绊')
         self.data.costs = df.pop('AP').tolist()

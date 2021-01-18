@@ -117,15 +117,12 @@ def catch_exception(func):
         try:
             return func(*args, **kwargs)
         except:  # noqas
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            s_args, s_kwargs = str(args), str(kwargs)
-            s = f'================= Error in {threading.current_thread()}, {func} ====================\n'
+            s = f'=== Error in {threading.current_thread()}, {func} ===\n'
             if args:
-                s += f'args={s_args[0:max(20, len(s_args))]}\n'
+                s += f'args={str(args):.200s}\n'
             if kwargs:
-                s += f'kwargs={s_kwargs[0:max(50, len(kwargs))]}\n'
-            s += "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
-            logger.error(s)
+                s += f'kwargs={str(kwargs):.200s}\n'
+            logger.error(s, exc_info=sys.exc_info())
 
     return catch_exception_wrapper
 

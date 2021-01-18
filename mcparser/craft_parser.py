@@ -52,10 +52,10 @@ class CraftParser(BaseParser):
         craft = t_craft_essential(parse_template(code, r'^{{概念礼装'))
         check_equal('index', index, craft.no)
 
-        name_link, name, name_other, icon, hp1, hp_max, atk1, atk_max, des, des_max, type_marker = \
+        name_link, name, name_other, icon, hp1, hp_max, atk1, atk_max, des, des_max, _type = \
             self.src_data.loc[index,
                               ['name_link', 'name', 'name_other', 'icon', 'hp1', 'hpmax', 'atk1', 'atkmax',
-                               'des', 'des_max', 'type_marker']]
+                               'des', 'des_max', 'type']]
 
         check_equal('mcLink', name_link, craft.mcLink, False)
         check_equal('name', name, craft.name, False)
@@ -72,7 +72,7 @@ class CraftParser(BaseParser):
         check_equal('atk min', int(atk_max), craft.atkMax)
         # check_equal('skill des', des, craft.skill, False)
         # check_equal('skill des max', des_max, craft.skillMax or '', False)
-        craft.category = int(type_marker)
+        craft.category = _type
 
         # bond craft & valentine craft
         craft.bond = self._which_svt(code, 0)

@@ -102,7 +102,7 @@ class EventParser:
 
         # ====== quests drop & rewards ======
         # merge sub pages into main quest page
-        for page in event_src_data['sub_pages']:
+        for page in event_src_data['sub_pages'].values():
             quest_wikitext.append(page)
         # not 高难 or repeatable ? rewards : rewards+drops
         hard_quest_sections = quest_wikitext.get_sections(matches='高难度关卡')
@@ -177,6 +177,12 @@ class EventParser:
                 '极光之钢': '第1期英雄级: 110.0 AP', '英雄之证': '第1期英雄级: 73.6 AP',
                 '奇奇神酒': '第2期英雄级: 198.9 AP', '凤凰羽毛': '第2期英雄级: 69.1 AP',
                 '晓光炉心': '第3期英雄级: 161.2 AP', '巨人的戒指': '第3期英雄级: 112.5 AP',
+            }
+        elif '荣光的圣诞老人之路' in event.name:
+            event.extra = {
+                '血之泪石': '兑换券', '神脉灵子': '兑换券/重量级189.4AP/超重量级147.0AP', '闲古铃': '兑换券',
+                '奇奇神酒': '重量级: 199.8 AP',  '陨蹄铁': '重量级: 182.9 AP',
+                '蛮神心脏': '超重量级: 159.7 AP', '大骑士勋章': '超重量级: 147.0 AP',
             }
 
         # check valid items

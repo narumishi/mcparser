@@ -44,7 +44,7 @@ class ServantParser(BaseParser):
         nicknames = [s for s in self.src_data.loc[index, 'name_other'].split('&') if s]
         servant.info.nicknames.extend(nicknames)
         servant.info.nicknames = list(set(servant.info.nicknames))
-        servant.info.obtains = self.src_data.loc[index, 'obtain'].split('&')
+        servant.info.obtains = re.split(r'\s*[\n|&]\s*', remove_tag(self.src_data.loc[index, 'obtain'], ['br']))
         for illust in servant.info.illustrations.values():
             ICONS.add(illust, save=False)
 
@@ -87,12 +87,25 @@ class ServantParser(BaseParser):
             if len(sections) == 0:
                 return
             section = str(sections[0])
-        splits = re.split(r"'''技能(?:[1-3])(?:（(?:.+?)）)?'''", section)
-        for s in splits:
+        left_section = section
+        tabber_skills: List[Tag] = mwp.parse(left_section).filter_tags(recursive=False, matches='tabber')
+        for _tabber in tabber_skills:
+            left_section = left_section.replace(str(_tabber), '')
+            if "'''技能" in str(_tabber):
+                logger.error(f"No.{index}-active skill: '''技能x''' inside tabber!!!")
+        standalone_skills = mwp.parse(left_section).filter_templates(matches='{{持有技能')
+        split_skills = [str(c) for c in tabber_skills + standalone_skills]
+        split_skills.sort(key=lambda x: section.index(x))
+
+        # splits = re.split(r"'''技能(?:[1-3])(?:（(?:.+?)）)?'''", section)
+        for s in split_skills:
             if '{{持有技能' not in s:
                 continue
             skills_unsorted: List[Skill] = []  # including 强化前/后
+            # print(split_tabber(s))
+            # print('before split,', s)
             for state, skill_code in split_tabber(s):
+                # print((state, skill_code))
                 params = parse_template(remove_tag(skill_code), r'^{{持有技能')
                 skill = t_active_skill(params)
                 skill.state = state

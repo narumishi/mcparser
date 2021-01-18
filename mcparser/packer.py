@@ -18,8 +18,11 @@ def make_dataset(fp: str = None, sp: ServantParser = None, cep: CraftParser = No
                  ep: EventParser = None, ip: ItemParser = None, icons: Icons = None, qp: QuestParser = None,
                  gp: GLPKParser = None):
     fp = fp or config.paths.dataset_des
+    version = time.strftime("%Y%m%dT%H%M")
+    with open(os.path.join(os.path.dirname(fp), 'VERSION'), 'w', encoding='utf8') as fd:
+        fd.write(version)
     gamedata = GameData()
-    gamedata.version = time.strftime("%Y%m%dT%H%M")
+    gamedata.version = version
 
     def _get_data(parser, _fp):
         data = getattr(parser, 'data', None)
@@ -48,12 +51,25 @@ def make_dataset(fp: str = None, sp: ServantParser = None, cep: CraftParser = No
     logger.info(f'dump gamedata at "{fp}"')
 
 
-def make_zip(fp: str, dataset_fp: str = None, icon_folder: str = None):
-    dataset_fp = dataset_fp or config.paths.dataset_des
-    icon_folder = icon_folder or config.paths.icons_folder
-    with zipfile.ZipFile(fp, 'w', zipfile.ZIP_DEFLATED)as fd:
+def make_zip(save_folder, save_fn=None, dataset_folder=None, dataset_fp=None, icon_folder=None,
+             text_only=False):
+    dataset_folder = dataset_folder or config.paths.dataset_folder
+    dataset_fp = dataset_fp or os.path.join(dataset_folder, 'dataset.json')
+    version_fp = os.path.join(dataset_folder, 'VERSION')
+    icon_folder = icon_folder or os.path.join(dataset_folder, 'icons')
+    if save_fn is None:
+        with open(version_fp, encoding='utf8')as fd:
+            version = fd.read().strip()
+        save_fn = f'dataset-{version}'
+        if text_only:
+            save_fn += '-without-image'
+        save_fn += '.zip'
+    save_fp = os.path.join(save_folder, save_fn)
+    with zipfile.ZipFile(save_fp, 'w', zipfile.ZIP_DEFLATED)as fd:
         fd.write(dataset_fp, 'dataset.json')
-        for filename in os.listdir(icon_folder):
-            if filename[0] not in '._':
-                fd.write(os.path.join(icon_folder, filename), f'icons/{filename}')
-    logger.info(f'zip file saved at "{fp}"')
+        fd.write(version_fp, 'VERSION')
+        if not text_only:
+            for filename in os.listdir(icon_folder):
+                if filename[0] not in '._':
+                    fd.write(os.path.join(icon_folder, filename), f'icons/{filename}')
+    logger.info(f'zip file saved at "{save_fp}"')

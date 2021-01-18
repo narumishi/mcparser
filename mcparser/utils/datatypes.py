@@ -328,7 +328,7 @@ class CraftEssential(Jsonable):
         self.eventSkills: List[str] = []
         self.description = ''
         self.descriptionJp = ''
-        self.category = 0
+        self.category = ''
         self.categoryText = ''
         self.characters: List[str] = []
         self.bond = -1

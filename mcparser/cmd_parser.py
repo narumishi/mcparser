@@ -40,10 +40,10 @@ class CmdParser(BaseParser):
         cmd_code = t_cmd_code(parse_template(code, r'^{{指令纹章'))
         check_equal('index', index, cmd_code.no)
 
-        name_link, name, name_other, des, method, method_text, icon, type_marker = \
+        name_link, name, name_other, des, method, method_text, icon, _type = \
             self.src_data.loc[index,
                               ['name_link', 'name', 'name_other', 'des', 'method', 'method_link_text',
-                               'icon', 'type_marker']]
+                               'icon', 'type']]
 
         check_equal('mcLink', name_link, cmd_code.mcLink, False)
         check_equal('name', name, cmd_code.name, False)
@@ -55,6 +55,6 @@ class CmdParser(BaseParser):
         ICONS.add(cmd_code.illustration, save=False)
         for icon in [cmd_code.icon, cmd_code.skillIcon]:
             ICONS.add(icon)
-        cmd_code.category = int(type_marker)
+        cmd_code.category = _type
 
         return index, cmd_code

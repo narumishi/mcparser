@@ -29,7 +29,7 @@ class ColorFormatter(logging.Formatter):
             if record.levelno == logging.DEBUG:
                 color = 'white'
             elif record.levelno == logging.INFO:
-                color = 'grey'
+                color = 'yellow'
             elif record.levelno > logging.INFO:
                 color = 'red'
         if color:
